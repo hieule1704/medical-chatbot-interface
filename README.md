@@ -157,5 +157,5 @@ MIT License — Sử dụng tự do cho mục đích học thuật và nghiên c
 ---
 
 <p align="center">
-  Đồ Án Tốt Nghiệp 2025 &nbsp;|&nbsp; Khoa Công Nghệ Thông Tin
+  Đồ Án Tốt Nghiệp 2026 &nbsp;|&nbsp; Khoa Công Nghệ Thông Tin
 </p>
