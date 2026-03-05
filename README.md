@@ -1,36 +1,161 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🩺 Medical AI Assistant
 
-## Getting Started
+> Giao diện web demo cho mô hình LLaMA 3 8B đã fine-tune chuyên biệt lĩnh vực y tế tiếng Việt.  
+> Đồ án tốt nghiệp — Khoa Công Nghệ Thông Tin — 2025
 
-First, run the development server:
+---
+
+## 📸 Demo
+
+![Medical AI Assistant Interface](./public/demo.png)
+
+**Tính năng chính:**
+
+- 💬 Hội thoại đa lượt với nhớ ngữ cảnh đầy đủ
+- ⚡ Streaming real-time từng token như ChatGPT
+- 🗂️ Lịch sử nhiều cuộc hội thoại (sidebar)
+- ✏️ Chỉnh sửa câu hỏi, thử lại câu trả lời, copy nội dung
+- 🌙 Dark theme chuyên nghiệp, font Be Vietnam Pro hỗ trợ tiếng Việt
+- 📱 Responsive trên mọi kích thước màn hình
+
+---
+
+## 🛠️ Tech Stack
+
+| Tầng       | Công nghệ                                      |
+| ---------- | ---------------------------------------------- |
+| Frontend   | Next.js 16 + TypeScript                        |
+| Styling    | Tailwind CSS v3                                |
+| Font       | Be Vietnam Pro (Google Fonts)                  |
+| AI Runtime | LM Studio (OpenAI-compatible API)              |
+| Mô hình    | LLaMA 3 8B — fine-tuned (`medical-chatbot-v4`) |
+| Giao thức  | SSE Streaming (`/v1/chat/completions`)         |
+
+---
+
+## ⚙️ Yêu Cầu Hệ Thống
+
+- **Node.js** >= 18
+- **LM Studio** >= 0.3.x — [Tải tại đây](https://lmstudio.ai)
+- **RAM** >= 12GB (khuyến nghị 16GB)
+- Mô hình GGUF `medical-chatbot-v4` đã được load trong LM Studio
+
+---
+
+## 🚀 Cài Đặt & Chạy
+
+### 1. Clone repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/hieule1704/medical_chatbot_interface
+cd medical_chatbot_interface
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Cài đặt dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Tạo file `.env.local`
 
-## Learn More
+```bash
+cp .env.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+Nội dung `.env.local`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+OPENAI_API_KEY=lm-studio
+OPENAI_BASE_URL=http://127.0.0.1:1234/v1
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Khởi động LM Studio
 
-## Deploy on Vercel
+1. Mở LM Studio
+2. Load model `medical-chatbot-v4` (GGUF)
+3. Vào tab **Local Server** → bấm **Start Server**
+4. Đảm bảo server chạy tại `http://127.0.0.1:1234`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. Chạy ứng dụng
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev -- --turbo=false
+```
+
+Mở trình duyệt tại [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 📁 Cấu Trúc Project
+
+```
+medical-ai-interface/
+├── app/
+│   ├── api/
+│   │   └── chat/
+│   │       └── route.ts      # API endpoint — kết nối LM Studio
+│   ├── globals.css            # Tailwind base styles
+│   ├── layout.tsx             # Root layout + Be Vietnam Pro font
+│   └── page.tsx               # Giao diện chat chính
+├── public/
+│   └── demo.png               # Screenshot demo
+├── .env.local                 # Biến môi trường (không commit)
+├── .env.example               # Template biến môi trường
+├── next.config.ts             # Cấu hình Next.js
+├── tailwind.config.js         # Cấu hình Tailwind CSS
+└── postcss.config.mjs         # PostCSS config
+```
+
+---
+
+## 🔄 Luồng Hoạt Động
+
+```
+Người dùng nhập câu hỏi
+        ↓
+React state (page.tsx) — lưu toàn bộ conversation history
+        ↓
+POST /api/chat — gửi mảng messages {role, content}
+        ↓
+route.ts — forward đến LM Studio kèm system prompt
+        ↓
+LM Studio POST /v1/chat/completions (stream: true)
+        ↓
+medical-chatbot-v4 — generate tokens, trả về SSE stream
+        ↓
+route.ts parser — chuyển đổi sang format 0:"token"
+        ↓
+Browser ReadableStream — cập nhật UI từng token real-time
+```
+
+---
+
+## 🤖 Về Mô Hình Fine-Tuned
+
+| Thông tin          | Chi tiết                                           |
+| ------------------ | -------------------------------------------------- |
+| Base model         | Meta LLaMA 3 8B                                    |
+| Kỹ thuật fine-tune | QLoRA (Quantized Low-Rank Adaptation)              |
+| Domain             | Y tế, sức khỏe tâm thần, tư vấn bệnh lý tiếng Việt |
+| Output artifacts   | LoRA adapter weights + GGUF export                 |
+| Quantization       | Q4_K_M (~5GB RAM)                                  |
+| Inference speed    | ~5.5 tokens/giây (CPU-only)                        |
+
+---
+
+## ⚠️ Lưu Ý Quan Trọng
+
+> **AI không thay thế bác sĩ.** Hệ thống này chỉ mang tính chất demo và hỗ trợ thông tin ban đầu. Người dùng cần tham khảo bác sĩ chuyên khoa cho các vấn đề sức khỏe nghiêm trọng.
+
+---
+
+## 📄 License
+
+MIT License — Sử dụng tự do cho mục đích học thuật và nghiên cứu.
+
+---
+
+<p align="center">
+  Đồ Án Tốt Nghiệp 2025 &nbsp;|&nbsp; Khoa Công Nghệ Thông Tin
+</p>
