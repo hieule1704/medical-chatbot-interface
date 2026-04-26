@@ -1,0 +1,63 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 20:32:30 25/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Xốp sơ tai là bệnh gì vậy bác sĩ? Nguyên nhân, triệu chứng, chuẩn đoán và cách điều trị của nó là gì?
+QUERY EMBED: Xốp sơ tai là bệnh gì vậy bác sĩ? Nguyên nhân, triệu chứng, chuẩn đoán và cách điều trị của nó là gì?
+THRESHOLD  : 0.55
+THỜI GIAN  : 1115ms
+
+CHROMADB CANDIDATES (5 kết quả):
+  [1] ✓ PASSED  | d=0.1872 | Bệnh tai ngoài — Chẩn đoán
+  [2] ✓ PASSED  | d=0.2531 | Viêm tai giữa mạn trẻ em — Nguyên nhân
+  [3] ✓ PASSED  | d=0.2541 | Viêm tai giữa mạn tính — Chẩn đoán
+  [4] ✓ PASSED  | d=0.2767 | Bệnh tai ngoài — Nguyên nhân
+  [5] ✓ PASSED  | d=0.3183 | Bệnh ménière — Nguyên nhân
+
+CHUNKS INJECT VÀO LLM: 5 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là bác sĩ tư vấn AI chuyên khoa Tai Mũi Họng. Dựa vào CÁC TÀI LIỆU Y KHOA nội bộ bên dưới (trích từ Hướng dẫn Bộ Y Tế), hãy trả lời câu hỏi chính xác, rõ ràng. Nếu không có trong tài liệu, nói rõ và khuyên thăm khám.
+
+═══ TÀI LIỆU THAM KHẢO NỘI BỘ ═══
+
+[Tài liệu 1] Bệnh tai ngoài — Chẩn đoán
+Chẩn đoán chủ yếu dựa vào thăm khám lâm sàng các biểu hiện bất thường ở vành tai và ống tai ngoài. Kéo vành tai, ấn nắp tai gây đau rõ rệt trong nhọt và viêm tấy lan tỏa ống tai ngoài. Khám vành tai mất nếp sụn, sưng tấy căng mọng trong viêm sụn vành tai. Đối với dị hình ống tai, cần chụp X quang để xác định tình trạng của tai giữa và hệ thống xương con.
+
+---
+
+[Tài liệu 2] Viêm tai giữa mạn trẻ em — Nguyên nhân
+Gồm hai thể chính: Viêm tai giữa tiết nhầy mủ do nguyên nhân ở mũi, xoang, vòm mũi họng (VA), bệnh tích khu trú ở niêm mạc vòi Eustache, hòm nhĩ, sào bào. Viêm tai giữa mủ do viêm tai giữa mủ cấp tính chuyển thành do không điều trị đúng cách, hoặc do hoại tử xương ngay trong giai đoạn cấp (sởi, cúm, bạch hầu), hoặc do sức đề kháng giảm (lao, tiểu đường), bệnh tích vượt khỏi niêm mạc và làm thương tổn đến xương.
+
+---
+
+[Tài liệu 3] Viêm tai giữa mạn tính — Chẩn đoán
+Chẩn đoán dựa vào bệnh sử chảy mủ trên 3 tháng và khám nội soi tai. Cận lâm sàng: Cấy dịch tai xác định vi khuẩn và làm kháng sinh đồ. Chụp CT Scan đầu hoặc xương chũm để xác định sự nhiễm trùng lan tỏa. Đo thính lực đánh giá sức nghe. Chẩn đoán phân biệt với nhọt/viêm ống tai ngoài, viêm tấy hạch sau tai, phản ứng xương chũm do viêm cấp, viêm tai sau lao phổi, viêm tai do giang mai.
+
+---
+
+[Tài liệu 4] Bệnh tai ngoài — Nguyên nhân
+Dị hình bẩm sinh vành tai và ống tai, rò bẩm sinh. Nhọt ống tai ngoài do ngoáy tai bằng vật cứng, bẩn gây xước da ống tai hoặc do viêm ở nang lông, tuyến bã. Viêm tấy lan tỏa ống tai ngoài do sang chấn nhỏ khi có nước hay cát vào tai, hoặc do dịch mủ ở tai giữa bít đọng. Viêm sụn vành tai do tụ máu, nhiễm tụ cầu sau sang chấn (gãi xước) hay chấn thương (đụng, dập). Chàm ống tai (Eczema) do mủ nhầy chảy thường xuyên từ tai giữa hoặc do thể địa dị ứng.
+
+---
+
+[Tài liệu 5] Bệnh ménière — Nguyên nhân
+Nguyên nhân từ sự rối loạn tai trong, giả thuyết do sự giãn ra của mê đạo màng. Các cơ chế bệnh sinh có thể gồm: bất thường về giải phẫu, di truyền gen trội, yếu tố miễn dịch, rối loạn chuyển hóa kali, rối loạn vận mạch (Migraine), hoặc do virus như Herpes simples virus typ I, II, Epstein barr virus. Bệnh thường gặp ở người trên 40 tuổi, nữ nhiều hơn nam.
+
+═══════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (1 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Xốp sơ tai là bệnh gì vậy bác sĩ? Nguyên nhân, triệu chứng, chuẩn đoán và cách điều trị của nó là gì?
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

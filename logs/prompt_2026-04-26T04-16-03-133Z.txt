@@ -1,0 +1,38 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 11:16:03 26/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Phác đồ điều trị viêm tai giữa ở trẻ em
+QUERY EMBED: Phác đồ điều trị viêm tai giữa ở trẻ em
+THRESHOLD  : 0.45
+THỜI GIAN  : 391ms
+
+CHROMADB CANDIDATES (5 kết quả):
+  [1] ✗ FILTERED | d=0.5108 | Điếc đột ngột — Điều trị
+  [2] ✗ FILTERED | d=0.5549 | Viêm tai giữa cấp tính trẻ em — Điều trị
+  [3] ✗ FILTERED | d=0.5584 | Viêm xương chũm cấp tính trẻ em — Điều trị
+  [4] ✗ FILTERED | d=0.5875 | Liệt dây thần kinh VII ngoại biên — Điều trị
+  [5] ✗ FILTERED | d=0.6102 | Viêm tai giữa mạn tính — Chẩn đoán
+
+CHUNKS INJECT VÀO LLM: 0 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là trợ lý y tế AI chuyên nghiệp về Tai Mũi Họng. Cung cấp thông tin sức khỏe chính xác bằng tiếng Việt. KHÔNG chẩn đoán thay bác sĩ. Luôn khuyến nghị thăm khám khi cần thiết.
+
+Lưu ý: Câu hỏi này không nằm trong cơ sở dữ liệu nội bộ. Hãy trả lời dựa trên kiến thức chung của bạn và ghi rõ rằng thông tin không được trích từ hướng dẫn chuyên khoa nội bộ.
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (1 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Phác đồ điều trị viêm tai giữa ở trẻ em
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

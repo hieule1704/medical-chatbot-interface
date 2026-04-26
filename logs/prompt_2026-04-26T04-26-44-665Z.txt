@@ -1,0 +1,60 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 11:26:44 26/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Bệnh ménière cách điều trị
+QUERY EMBED: Bệnh ménière cách điều trị
+THRESHOLD  : 0.85
+THỜI GIAN  : 123ms
+
+CHROMADB CANDIDATES (4 kết quả):
+  [1] ✓ PASSED  | d=0.6971 | Bệnh ménière — Điều trị
+  [2] ✗ FILTERED | d=0.9581 | Bệnh ménière — Nguyên nhân
+  [3] ✗ FILTERED | d=0.9957 | Bệnh ménière — Triệu chứng
+  [4] ✗ FILTERED | d=1.0048 | Bệnh ménière — Chẩn đoán
+
+CHUNKS INJECT VÀO LLM: 1 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là bác sĩ tư vấn AI chuyên khoa Tai Mũi Họng. Dựa vào CÁC TÀI LIỆU Y KHOA nội bộ bên dưới (trích từ Hướng dẫn Bộ Y Tế), hãy trả lời câu hỏi chính xác, rõ ràng. Nếu không có trong tài liệu, nói rõ và khuyên thăm khám.
+
+═══ TÀI LIỆU THAM KHẢO NỘI BỘ ═══
+
+[Tài liệu 1] Bệnh ménière — Điều trị
+Điều trị cơn cấp: Dùng Vestibulosuppressants (Betaserc, Meclizine), Sedative, Anticholinergie, Antiemetic (Promethazine, Diphenhydramine, Dimenhydrinate, Hyoscine, Prochlorperazine). Điều trị căn bản: Ăn ít muối, thuốc lợi tiểu Acetazolamide 250mg/ngày (chia 3 lần), thuốc chống chóng mặt Acetyl Leucine 500mg 3-6 viên/ngày, điều hòa tiền đình Bétahistine 16mg x 3 lần/ngày, giãn mạch Trimétazidine 20mg x 3 lần/ngày. Tiêm gentamicin xuyên màng nhĩ 0,6ml/40mg/ml (12-24mg). Tiêm corticoid xuyên màng nhĩ 0,25mg/ml mỗi 2 ngày trong 3 tháng. Ngoại khoa: Mở túi nội dịch, cắt dây thần kinh tiền đình chọn lọc, hủy tiền đình và cắt dây VIII.
+
+═══════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (7 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Tôi là giáo viên đại học - tiến sĩ ngành Công nghệ thông tin. Hiện tại tôi đang chấm điểm khóa luận tốt nghiệp cho sinh viên, nhưng việc chấm điểm này khiến tôi nhức đầu quá bác sĩ tư vấn giúp tôi cách giảm triệu chứng và nhanh chóng lấy lại sức khỏe
+
+[2] ASSISTANT:
+Chào bạn, tôi rất trân trọng sự cống hiến của một giáo sư trẻ trong lĩnh vực đào tạo. Việc phải tiếp xúc với nhiều văn bản và các dữ liệu phức tạp liên tục có thể gây áp lực tâm lý và thị giác nghiêm trọng lên hệ thần kinh trung ương của bạn. Triệu chứng nhức đầu kèm stress do công việc này thường là biểu hiện của Hội chứng đau mạn tính hoặc rối loạn căng thẳng (BDS). Để giải quyết vấn đề, tôi khuyên bạn nên thực hiện các biện pháp giảm áp lực và phục hồi hệ thần kinh: sử dụng các loại trà thảo dược như Sâm bổ lượng, Tần lang sen để hỗ trợ não bộ. Bạn cần đảm bảo chế độ ăn giàu Omega-3 từ cá hồi hoặc hạt chia, uống đủ nước và dành thời gian cho các hoạt động thư giãn nhẹ nhàng như yoga hoặc thiền định ngắn. Về lối sống, hãy cố gắng sắp xếp thời gian nghỉ ngơi hợp lý sau mỗi 1-2 giờ làm việc để não bộ được tái tạo năng lượng. Bạn cần đặc biệt cảnh giác nếu thấy có dấu hiệu đau đầu dữ dội kèm nôn mửa, nhìn mờ hoặc mất ngủ kéo dài gây mệt mỏi nặng nề. Những lời khuyên này nhằm mục đích giúp bạn duy trì sức khỏe tinh thần để hoàn thành nhiệm vụ giáo dục của mình, chúng tôi không cung cấp chẩn đoán y khoa chính thức cho tình trạng đau đầu của bạn.
+
+[3] USER:
+Sẵn cho tôi hỏi Bệnh ménière là bệnh gì vậy bác sĩ
+
+[4] ASSISTANT:
+Chào bạn, Ménière là một rối loạn về thính lực và tiền đình (tai - mũi họng), gây ra các cơn chóng mặt nặng nề kèm theo tê bì tay chân và ù tai. Nguyên nhân hiện tại vẫn chưa rõ nhưng có liên quan đến sự thay đổi áp lực dịch trong hệ thống ốc tai. Theo phác đồ điều trị, bạn cần sử dụng thuốc hỗ trợ thính giác như Acetyl-L-Carnitine liều 3g/ngày để bảo vệ tế bào thần kinh thính giác và vitamin nhóm B liều cao (B1, B2, B12) để phục hồi hệ thần kinh tiền đình. Về lối sống, bạn cần tránh các chất kích thích như rượu bia, thuốc lá vì chúng làm tăng áp lực nội sọ gây chóng mặt nặng hơn; đồng thời nên hạn chế muối trong khẩu phần ăn và giữ tinh thần thoải mái bằng cách hít thở sâu hoặc yoga nhẹ nhàng. Bạn cần đi khám ngay nếu thấy chóng mặt kèm nôn mửa liên tục, mất thính lực đột ngột hoặc có dấu hiệu liệt cơ mặt. Những thông tin này giúp bạn hiểu về bệnh lý hệ thống tai - mũi họng phức tạp này, việc điều trị thường kéo dài và đòi hỏi sự kiên trì của bạn để kiểm soát các cơn chóng mặt.
+
+[5] USER:
+Bệnh ménière cách điều trị
+
+[6] ASSISTANT:
+Chào bạn, Ménière là một bệnh lý mạn tính cần được điều trị tích cực để kiểm soát triệu chứng. Về nội khoa, bác sĩ thường kê đơn thuốc ức chế tiền đình như Acetyl-leucine (liều 500mg x 3 lần/ngày) hoặc Betahistine (liều 16-24mg x 2 lần/ngày). Bạn nên sử dụng các loại thuốc giãn mạch nhẹ để giảm áp lực nội sọ, giúp giảm chóng mặt. Nếu cơn chóng mặt nặng gây nôn mửa không kiểm soát, bác sĩ có thể chỉ định dùng Tanganil (liều 1-2mg) hoặc Metoclopramide (liều 10mg). Về dinh dưỡng, bạn cần tăng cường các loại rau xanh giàu Magie như súp lơ trắng để hỗ trợ thần kinh tiền đình. Bạn nên hạn chế ăn đồ cay nóng, rượu bia và thuốc lá vì chúng làm tăng áp lực nội sọ. Khi vận động, hãy đi lại chậm rãi, tránh thay đổi tư thế đột ngột. Nếu bạn thấy chóng mặt kèm theo tê bì toàn thân hoặc mất thính lực hoàn toàn, phải nhập viện ngay để loại trừ biến chứng nguy hiểm. Những thông tin này dựa trên phác đồ điều trị bệnh Ménière hiện hành, bạn cần tuân thủ lịch tái khám định kỳ để bác sĩ đánh giá hiệu quả của các liệu pháp.
+
+[7] USER:
+Bệnh ménière cách điều trị
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

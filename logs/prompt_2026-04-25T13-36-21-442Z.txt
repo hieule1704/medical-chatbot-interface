@@ -1,0 +1,100 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 20:36:21 25/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Bệnh viêm tai muổi họng - cách điều trị
+QUERY EMBED: Bệnh viêm tai muổi họng - cách điều trị
+THRESHOLD  : 0.55
+THỜI GIAN  : 191ms
+
+CHROMADB CANDIDATES (5 kết quả):
+  [1] ✓ PASSED  | d=0.1664 | Viêm tai giữa mạn trẻ em — Nguyên nhân
+  [2] ✓ PASSED  | d=0.2460 | Viêm tai giữa cấp tính trẻ em — Nguyên nhân
+  [3] ✓ PASSED  | d=0.2514 | Viêm tai giữa mạn tính — Chẩn đoán
+  [4] ✓ PASSED  | d=0.2514 | Bệnh tai ngoài — Chẩn đoán
+  [5] ✓ PASSED  | d=0.2710 | Bệnh tai ngoài — Nguyên nhân
+
+CHUNKS INJECT VÀO LLM: 5 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là bác sĩ tư vấn AI chuyên khoa Tai Mũi Họng. Dựa vào CÁC TÀI LIỆU Y KHOA nội bộ bên dưới (trích từ Hướng dẫn Bộ Y Tế), hãy trả lời câu hỏi chính xác, rõ ràng. Nếu không có trong tài liệu, nói rõ và khuyên thăm khám.
+
+═══ TÀI LIỆU THAM KHẢO NỘI BỘ ═══
+
+[Tài liệu 1] Viêm tai giữa mạn trẻ em — Nguyên nhân
+Gồm hai thể chính: Viêm tai giữa tiết nhầy mủ do nguyên nhân ở mũi, xoang, vòm mũi họng (VA), bệnh tích khu trú ở niêm mạc vòi Eustache, hòm nhĩ, sào bào. Viêm tai giữa mủ do viêm tai giữa mủ cấp tính chuyển thành do không điều trị đúng cách, hoặc do hoại tử xương ngay trong giai đoạn cấp (sởi, cúm, bạch hầu), hoặc do sức đề kháng giảm (lao, tiểu đường), bệnh tích vượt khỏi niêm mạc và làm thương tổn đến xương.
+
+---
+
+[Tài liệu 2] Viêm tai giữa cấp tính trẻ em — Nguyên nhân
+Nguyên nhân chính của viêm tai giữa cấp tính là viêm vòm mũi họng, quá trình viêm vào tai bằng con đường vòi Eustache là chủ yếu, ít khi viêm nhiễm xâm nhập bằng đường máu hoặc đường bạch huyết. Sự viêm nhiễm này có thể gây ra bởi các bệnh nhiễm trùng toàn thân như cúm, sởi... hoặc những bệnh cục bộ như viêm mũi, viêm xoang, viêm V.A, u vòm mũi họng, hoặc nút mũi sau để quá lâu. Nói chung viêm tai giữa cấp tính thường gặp ở trẻ em có VA hoặc có thể địa bạch huyết. Rách màng nhĩ do chấn thương cũng là một nguyên nhân gây viêm tai giữa cấp tính.
+
+---
+
+[Tài liệu 3] Viêm tai giữa mạn tính — Chẩn đoán
+Chẩn đoán dựa vào bệnh sử chảy mủ trên 3 tháng và khám nội soi tai. Cận lâm sàng: Cấy dịch tai xác định vi khuẩn và làm kháng sinh đồ. Chụp CT Scan đầu hoặc xương chũm để xác định sự nhiễm trùng lan tỏa. Đo thính lực đánh giá sức nghe. Chẩn đoán phân biệt với nhọt/viêm ống tai ngoài, viêm tấy hạch sau tai, phản ứng xương chũm do viêm cấp, viêm tai sau lao phổi, viêm tai do giang mai.
+
+---
+
+[Tài liệu 4] Bệnh tai ngoài — Chẩn đoán
+Chẩn đoán chủ yếu dựa vào thăm khám lâm sàng các biểu hiện bất thường ở vành tai và ống tai ngoài. Kéo vành tai, ấn nắp tai gây đau rõ rệt trong nhọt và viêm tấy lan tỏa ống tai ngoài. Khám vành tai mất nếp sụn, sưng tấy căng mọng trong viêm sụn vành tai. Đối với dị hình ống tai, cần chụp X quang để xác định tình trạng của tai giữa và hệ thống xương con.
+
+---
+
+[Tài liệu 5] Bệnh tai ngoài — Nguyên nhân
+Dị hình bẩm sinh vành tai và ống tai, rò bẩm sinh. Nhọt ống tai ngoài do ngoáy tai bằng vật cứng, bẩn gây xước da ống tai hoặc do viêm ở nang lông, tuyến bã. Viêm tấy lan tỏa ống tai ngoài do sang chấn nhỏ khi có nước hay cát vào tai, hoặc do dịch mủ ở tai giữa bít đọng. Viêm sụn vành tai do tụ máu, nhiễm tụ cầu sau sang chấn (gãi xước) hay chấn thương (đụng, dập). Chàm ống tai (Eczema) do mủ nhầy chảy thường xuyên từ tai giữa hoặc do thể địa dị ứng.
+
+═══════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (5 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Xốp sơ tai là bệnh gì vậy bác sĩ? Nguyên nhân, triệu chứng, chuẩn đoán và cách điều trị của nó là gì?
+
+[2] ASSISTANT:
+(Chuyên gia tư vấn) Chào bạn, Xốp sơ tai (Pachymenigitis exudativa) là một biến thể của viêm màng não mạn tính. Đây là tình trạng có lớp xơ cứng dày lên ở phần lưng sọ và phủ xuống mặt trước của màng não.
+
+Nguyên nhân thường do nhiễm trùng mạn tính kéo dài, hoặc sau các bệnh lý hệ thần kinh trung ương như viêm não, lao phổi, hoặc bệnh tự miễn (Viêm màng não hệ thống). Triệu chứng đặc trưng là đau đầu dữ dội, nôn mửa liên tục và rối loạn thị giác.
+
+Chẩn đoán dựa trên chụp cộng hưởng từ (MRI) sọ não có tiêm thuốc cản quang để thấy lớp xơ dày lên. Các xét nghiệm máu như kháng thể tế bào bạch cầu (ANCA), miễn dịch hệ thống cũng giúp xác định nguyên nhân.
+
+Điều trị chủ yếu là nội khoa, dùng các thuốc giãn mạch, giảm đau và điều trị nguyên nhân gây bệnh. Nếu có biến chứng áp lực nội sọ tăng cao, cần phẫu thuật lấy xốp sơ tai để giải phóng màng não.
+
+Lời khuyên: Bạn nên giữ tinh thần thoải mái, tránh căng thẳng quá mức vì đây là yếu tố kích hoạt cơn đau đầu. Hạn chế các chất kích thích như rượu bia, thuốc lá.
+
+Cảnh báo (Red Flags): Nếu bạn thấy sốt cao liên tục, nôn mửa không kiểm soát hoặc nhìn mờ nhanh chóng, cần nhập viện ngay để loại trừ viêm não tái phát hoặc áp lực nội sọ tăng quá mức.
+
+Miễn trừ trách nhiệm: Thông tin này mang tính chất hỗ trợ chuyên môn. Bạn nên đến bệnh viện chuyên khoa để bác sĩ trực tiếp thăm khám và theo dõi sát sao các chỉ số thần kinh.
+
+[3] USER:
+Bệnh ménière
+
+[4] ASSISTANT:
+(Chuyên gia tư vấn) Chào bạn, Bệnh Ménière là một rối loạn của hệ thống thính giác - tiền đình. Nguyên nhân vẫn chưa rõ ràng nhưng có liên quan đến sự thay đổi áp lực nội dịch trong các hốc ốc tai.
+
+Triệu chứng chính bao gồm: ù tai (tần số thấp), rối loạn thăng bằng và tê bì chi dưới, kèm theo chóng mặt nặng nề. Đây là bệnh lý mạn tính, thường có chu kỳ tái phát theo từng đợt.
+
+Chẩn đoán dựa trên các dấu hiệu lâm sàng đặc trưng như: Nghiệm pháp Weber dương tính (thính lực không đồng đều), nghiệm pháp Rinne âm tính (nghe kém sau 2000Hz) và chẩn đoán định lượng bằng đo vận động tiền đình (Caloric test).
+
+Phác đồ điều trị hiện nay bao gồm:
+- Điều trị triệu chứng: Sử dụng thuốc giãn mạch, giảm đau, chống nôn.
+- Điều trị nguyên nhân: Theo hướng dẫn của Bộ Y tế, có thể sử dụng các thuốc ức chế tái hấp thu serotonin (SSRI) hoặc Canxi channel blockers để ổn định áp lực dịch tai trong.
+
+Lời khuyên: Bạn nên tránh các tác nhân gây kích thích tiền đình như rượu bia, thuốc lá, hóa chất độc. Tránh thay đổi tư thế đột ngột và hạn chế sử dụng máy nghe nhạc có âm lượng quá lớn.
+- Cảnh báo (Red Flags): Nếu bạn thấy chóng mặt kèm nôn mửa kéo dài trên 24 giờ, hoặc mất thính lực hoàn toàn trong một thời gian ngắn, cần nhập viện ngay để loại trừ biến chứng tai trong nguy hiểm.
+
+Miễn trừ trách nhiệm: Thông tin này dựa trên hướng dẫn chẩn đoán bệnh Ménière. Bạn nên đến chuyên khoa Tai Mũi Họng để bác sĩ theo dõi và điều trị bằng các thuốc đặc hiệu.
+
+[5] USER:
+Bệnh viêm tai muổi họng - cách điều trị
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

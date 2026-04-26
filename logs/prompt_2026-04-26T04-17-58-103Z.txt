@@ -1,0 +1,38 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 11:17:58 26/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Tôi là giáo viên đại học - tiến sĩ ngành Công nghệ thông tin. Hiện tại tôi đang chấm điểm khóa luận tốt nghiệp cho sinh viên, nhưng việc chấm điểm này khiến tôi nhức đầu quá bác sĩ tư vấn giúp tôi cách giảm triệu chứng và nhanh chóng lấy lại sức khỏe
+QUERY EMBED: Tôi là giáo viên đại học - tiến sĩ ngành Công nghệ thông tin. Hiện tại tôi đang chấm điểm khóa luận tốt nghiệp cho sinh viên, nhưng việc chấm điểm này khiến tôi nhức đầu quá bác sĩ tư vấn giúp tôi cách giảm triệu chứng và nhanh chóng lấy lại sức khỏe
+THRESHOLD  : 0.45
+THỜI GIAN  : 296ms
+
+CHROMADB CANDIDATES (5 kết quả):
+  [1] ✗ FILTERED | d=0.8482 | Viêm tai giữa mạn tính có cholesteatoma — Triệu chứng
+  [2] ✗ FILTERED | d=0.8510 | U ác tính mũi xoang — Nguyên nhân
+  [3] ✗ FILTERED | d=0.8573 | Viêm tai giữa mạn tính có cholesteatoma — Điều trị
+  [4] ✗ FILTERED | d=0.8588 | Bệnh ménière — Triệu chứng
+  [5] ✗ FILTERED | d=0.8685 | Hội chứng đau nhức sọ mặt — Điều trị
+
+CHUNKS INJECT VÀO LLM: 0 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là trợ lý y tế AI chuyên nghiệp về Tai Mũi Họng. Cung cấp thông tin sức khỏe chính xác bằng tiếng Việt. KHÔNG chẩn đoán thay bác sĩ. Luôn khuyến nghị thăm khám khi cần thiết.
+
+Lưu ý: Câu hỏi này không nằm trong cơ sở dữ liệu nội bộ. Hãy trả lời dựa trên kiến thức chung của bạn và ghi rõ rằng thông tin không được trích từ hướng dẫn chuyên khoa nội bộ.
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (1 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Tôi là giáo viên đại học - tiến sĩ ngành Công nghệ thông tin. Hiện tại tôi đang chấm điểm khóa luận tốt nghiệp cho sinh viên, nhưng việc chấm điểm này khiến tôi nhức đầu quá bác sĩ tư vấn giúp tôi cách giảm triệu chứng và nhanh chóng lấy lại sức khỏe
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

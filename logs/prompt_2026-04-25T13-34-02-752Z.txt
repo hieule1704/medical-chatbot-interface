@@ -1,0 +1,57 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 20:34:02 25/4/2026
+══════════════════════════════════════════════════════════════════════
+
+CHẾ ĐỘ RAG : BẬT ✓
+
+QUERY GỐC  : Bệnh ménière
+QUERY EMBED: Bệnh ménière
+THRESHOLD  : 0.55
+THỜI GIAN  : 208ms
+
+CHROMADB CANDIDATES (4 kết quả):
+  [1] ✓ PASSED  | d=0.4404 | Bệnh ménière — Nguyên nhân
+  [2] ✗ FILTERED | d=0.5871 | Bệnh ménière — Triệu chứng
+  [3] ✗ FILTERED | d=0.5975 | Bệnh ménière — Chẩn đoán
+  [4] ✗ FILTERED | d=0.6337 | Bệnh ménière — Điều trị
+
+CHUNKS INJECT VÀO LLM: 1 chunks
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM PROMPT (toàn bộ nội dung model nhận):
+──────────────────────────────────────────────────────────────────────
+
+Bạn là bác sĩ tư vấn AI chuyên khoa Tai Mũi Họng. Dựa vào CÁC TÀI LIỆU Y KHOA nội bộ bên dưới (trích từ Hướng dẫn Bộ Y Tế), hãy trả lời câu hỏi chính xác, rõ ràng. Nếu không có trong tài liệu, nói rõ và khuyên thăm khám.
+
+═══ TÀI LIỆU THAM KHẢO NỘI BỘ ═══
+
+[Tài liệu 1] Bệnh ménière — Nguyên nhân
+Nguyên nhân từ sự rối loạn tai trong, giả thuyết do sự giãn ra của mê đạo màng. Các cơ chế bệnh sinh có thể gồm: bất thường về giải phẫu, di truyền gen trội, yếu tố miễn dịch, rối loạn chuyển hóa kali, rối loạn vận mạch (Migraine), hoặc do virus như Herpes simples virus typ I, II, Epstein barr virus. Bệnh thường gặp ở người trên 40 tuổi, nữ nhiều hơn nam.
+
+═══════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+CONVERSATION HISTORY (2 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] ASSISTANT:
+(Chuyên gia tư vấn) Chào bạn, Xốp sơ tai (Pachymenigitis exudativa) là một biến thể của viêm màng não mạn tính. Đây là tình trạng có lớp xơ cứng dày lên ở phần lưng sọ và phủ xuống mặt trước của màng não.
+
+Nguyên nhân thường do nhiễm trùng mạn tính kéo dài, hoặc sau các bệnh lý hệ thần kinh trung ương như viêm não, lao phổi, hoặc bệnh tự miễn (Viêm màng não hệ thống). Triệu chứng đặc trưng là đau đầu dữ dội, nôn mửa liên tục và rối loạn thị giác.
+
+Chẩn đoán dựa trên chụp cộng hưởng từ (MRI) sọ não có tiêm thuốc cản quang để thấy lớp xơ dày lên. Các xét nghiệm máu như kháng thể tế bào bạch cầu (ANCA), miễn dịch hệ thống cũng giúp xác định nguyên nhân.
+
+Điều trị chủ yếu là nội khoa, dùng các thuốc giãn mạch, giảm đau và điều trị nguyên nhân gây bệnh. Nếu có biến chứng áp lực nội sọ tăng cao, cần phẫu thuật lấy xốp sơ tai để giải phóng màng não.
+
+Lời khuyên: Bạn nên giữ tinh thần thoải mái, tránh căng thẳng quá mức vì đây là yếu tố kích hoạt cơn đau đầu. Hạn chế các chất kích thích như rượu bia, thuốc lá.
+
+Cảnh báo (Red Flags): Nếu bạn thấy sốt cao liên tục, nôn mửa không kiểm soát hoặc nhìn mờ nhanh chóng, cần nhập viện ngay để loại trừ viêm não tái phát hoặc áp lực nội sọ tăng quá mức.
+
+Miễn trừ trách nhiệm: Thông tin này mang tính chất hỗ trợ chuyên môn. Bạn nên đến bệnh viện chuyên khoa để bác sĩ trực tiếp thăm khám và theo dõi sát sao các chỉ số thần kinh.
+
+[2] USER:
+Bệnh ménière
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════
