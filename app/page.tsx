@@ -216,6 +216,128 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
+
+// ── Service Health Types & Hook ───────────────────────────────────────────
+interface ServiceStatus { ok: boolean; latencyMs: number; name: string; }
+interface HealthData {
+  ok: boolean;
+  services: { lmStudio: ServiceStatus; embeddingApi: ServiceStatus; };
+  timestamp: number;
+}
+type HealthState = 'checking' | 'ok' | 'degraded' | 'down';
+
+function useServiceHealth(intervalMs = 15000) {
+  const [health, setHealth]     = useState<HealthData | null>(null);
+  const [state, setState]       = useState<HealthState>('checking');
+  const [expanded, setExpanded] = useState(false);
+
+  const check = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/health', { cache: 'no-store' });
+      const data = await res.json() as HealthData;
+      setHealth(data);
+      if (data.ok) setState('ok');
+      else if (data.services.lmStudio.ok || data.services.embeddingApi.ok) setState('degraded');
+      else setState('down');
+    } catch {
+      setState('down');
+      setHealth(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    check();
+    const id = setInterval(check, intervalMs);
+    return () => clearInterval(id);
+  }, [check, intervalMs]);
+
+  return { health, state, expanded, setExpanded, check };
+}
+
+function StatusIndicator() {
+  const { health, state, expanded, setExpanded, check } = useServiceHealth(15000);
+
+  const cfg: Record<HealthState, { dot: string; pulse: boolean; label: string; bg: string; border: string }> = {
+    checking: { dot: '#94a3b8', pulse: false, label: 'Đang kiểm tra...', bg: 'var(--bg-elevated)', border: 'var(--border)'    },
+    ok      : { dot: '#10b981', pulse: true,  label: 'Hệ thống OK',      bg: '#10b98108',         border: '#10b98125'         },
+    degraded: { dot: '#f59e0b', pulse: true,  label: 'Một dịch vụ lỗi',  bg: '#f59e0b08',         border: '#f59e0b25'         },
+    down    : { dot: '#ef4444', pulse: false, label: 'Mất kết nối',       bg: '#ef444408',         border: '#ef444425'         },
+  };
+  const c = cfg[state];
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <button onClick={() => setExpanded(v => !v)} title="Trạng thái dịch vụ"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px',
+          borderRadius: 99, cursor: 'pointer', border: `1px solid ${c.border}`,
+          background: c.bg, transition: 'all 0.2s' }}>
+        <span style={{ position: 'relative', width: 8, height: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: c.dot,
+            animation: c.pulse ? 'healthPulse 2s ease-in-out infinite' : 'none' }} />
+          {c.pulse && <span style={{ position: 'absolute', inset: -2, borderRadius: '50%',
+            background: c.dot, opacity: 0.3, animation: 'healthRing 2s ease-in-out infinite' }} />}
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: c.dot, whiteSpace: 'nowrap' }}>{c.label}</span>
+      </button>
+
+      {expanded && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setExpanded(false)} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 264,
+            zIndex: 50, background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+            borderRadius: 12, boxShadow: 'var(--shadow)', overflow: 'hidden',
+            animation: 'dropIn 0.15s cubic-bezier(0.16,1,0.3,1)' }}>
+            <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>Trạng thái dịch vụ</span>
+              <button onClick={(e) => { e.stopPropagation(); check(); }}
+                style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
+                ↻ Refresh
+              </button>
+            </div>
+            <div style={{ padding: '6px 0' }}>
+              {health ? (
+                [
+                  { icon: '🤖', label: 'LM Studio',    data: health.services.lmStudio     },
+                  { icon: '🧬', label: 'Embedding API', data: health.services.embeddingApi },
+                ].map(({ icon, label, data }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', padding: '7px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>{icon}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {data.ok && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{data.latencyMs}ms</span>}
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+                        background: data.ok ? '#10b98115' : '#ef444415',
+                        color: data.ok ? '#10b981' : '#ef4444',
+                        border: `1px solid ${data.ok ? '#10b98125' : '#ef444425'}` }}>
+                        {data.ok ? '● ONLINE' : '● OFFLINE'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                  Không thể kết nối server
+                </div>
+              )}
+            </div>
+            {health && (
+              <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)',
+                fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                Cập nhật: {new Date(health.timestamp).toLocaleTimeString('vi-VN')} · tự động mỗi 15s
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Chat() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -576,11 +698,8 @@ export default function Chat() {
             </button>
           </div>
 
-          {/* LM Studio status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>LM Studio</span>
-          </div>
+          {/* Service Status Indicator */}
+          <StatusIndicator />
         </header>
 
         {/* Messages area */}
@@ -764,6 +883,9 @@ export default function Chat() {
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
         .msg-actions { transition: opacity 0.15s; }
         .msg-actions:hover { opacity: 1 !important; }
+        @keyframes healthPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(0.85); } }
+        @keyframes healthRing  { 0% { transform:scale(1); opacity:0.4; } 100% { transform:scale(2.5); opacity:0; } }
+        @keyframes dropIn      { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
     </div>
   );

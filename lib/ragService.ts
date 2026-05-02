@@ -1,39 +1,24 @@
 /**
- * lib/ragService.ts — RAG Service v3 (Hybrid Retrieval)
+ * lib/ragService.ts — RAG Service v3.1
  *
- * Thay đổi so với v2.1:
- * ┌─────────────────────────────────────────────────────────────────┐
- * │  HYBRID RETRIEVAL = Keyword Filter  +  Semantic Search          │
- * │                                                                 │
- * │  Bước 1: Nếu query chứa tên bệnh khớp metadata disease_name    │
- * │           → filter ChromaDB theo disease_name (exact match)    │
- * │           → chỉ semantic search trong tập con đó               │
- * │                                                                 │
- * │  Bước 2: Nếu không khớp tên bệnh cụ thể                        │
- * │           → semantic search toàn collection như cũ              │
- * └─────────────────────────────────────────────────────────────────┘
- *
- * Lý do: MiniLM không phân biệt tên bệnh cụ thể, chỉ thấy domain
- * "bệnh tai mũi họng" chung. Keyword filter giải quyết triệt để.
- *
- * Keyword trong báo cáo: "Two-stage Hybrid Retrieval"
+ * Thay đổi so với v3:
+ * - Thêm export formatRAGContext() — dùng bởi chat/route.ts để inject
+ *   tài liệu vào USER MESSAGE thay vì override system prompt
+ * - buildSystemPrompt() giữ lại cho backward compat nhưng không dùng nữa
+ * - Query embedding text vẫn dùng preprocessQuery, KHÔNG nhúng disease prefix
+ *   (prefix chỉ dùng khi ingest để cải thiện vector quality)
  */
 
 import { ChromaClient } from 'chromadb';
 
-const client = new ChromaClient({ host: 'localhost', port: 8001 });
-const COLLECTION_NAME = 'medical_ent'; // phải trùng với tên collection khi build RAG
+const client          = new ChromaClient({ host: 'localhost', port: 8001 });
+const COLLECTION_NAME = 'medical_ent';
 const EMBEDDING_API   = 'http://localhost:8002/embed';
 
-// Threshold khác nhau cho 2 mode:
-// - Khi có filter tên bệnh (tập con nhỏ, precision cao): nới rộng hơn
-// - Khi semantic search toàn bộ (risk noise cao): giữ chặt
-const THRESHOLD_FILTERED  = 0.65;   // có disease_name filter
-const THRESHOLD_FULL      = 0.45;   // semantic search toàn collection
+const THRESHOLD_FILTERED = 0.65; // Ngưỡng khi đã detect bệnh → lọc theo disease_name
+const THRESHOLD_FULL     = 0.45; // Ngưỡng khi không detect bệnh → tìm kiếm semantic toàn bộ (thường lỏng hơn)
 
-// ─── Danh sách tên bệnh trong collection ──────────────────────────────────
-// Dùng để match keyword trong query. Lấy từ rag_ent_knowledge.json.
-// Nếu thêm bệnh mới vào data, thêm vào đây luôn.
+// ─── Disease Registry ─────────────────────────────────────────────────────────
 const KNOWN_DISEASES: string[] = [
   'liệt dây thần kinh vii ngoại biên',
   'liệt dây thần kinh 7',
@@ -72,7 +57,6 @@ const KNOWN_DISEASES: string[] = [
   'rò xoang lê',
 ];
 
-// Map alias → tên chuẩn trong disease_name của ChromaDB metadata
 const DISEASE_ALIAS: Record<string, string> = {
   'liệt dây thần kinh 7'   : 'Liệt dây thần kinh VII ngoại biên',
   'liệt mặt'               : 'Liệt dây thần kinh VII ngoại biên',
@@ -86,85 +70,67 @@ const DISEASE_ALIAS: Record<string, string> = {
   'papilloma'              : 'Papilloma (u nhú) mũi xoang',
 };
 
+// ─── Types ───────────────────────────────────────────────────────────────────
 export interface RAGChunk {
-  content: string;
+  content     : string;
   disease_name: string;
-  section: string;
-  keywords: string;
-  distance: number;
+  section     : string;
+  keywords    : string;
+  distance    : number;
 }
 
 export interface RAGDebugInfo {
-  originalQuery    : string;
-  processedQuery   : string;
-  retrievalMode    : 'hybrid_filtered' | 'semantic_full';
-  detectedDisease  : string | null;
-  threshold        : number;
-  candidates       : Array<{
-    disease_name : string;
-    section      : string;
-    distance     : number;
-    passed       : boolean;
-  }>;
-  passedCount  : number;
-  elapsedMs    : number;
+  originalQuery   : string;
+  processedQuery  : string;
+  retrievalMode   : 'hybrid_filtered' | 'semantic_full';
+  detectedDisease : string | null;
+  threshold       : number;
+  candidates      : Array<{ disease_name: string; section: string; distance: number; passed: boolean }>;
+  passedCount     : number;
+  elapsedMs       : number;
 }
 
 export interface RAGResult {
-  chunks     : RAGChunk[];
-  hasContext : boolean;
-  debug      : RAGDebugInfo;
+  chunks    : RAGChunk[];
+  hasContext: boolean;
+  debug     : RAGDebugInfo;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function normalize(s: string): string {
   return s.toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')   // bỏ dấu
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Tìm tên bệnh trong query.
- * Trả về { canonical, normalized } nếu khớp, null nếu không.
- */
 function detectDisease(query: string): { canonical: string; normalized: string } | null {
   const nq = normalize(query);
 
-  // Thử alias trước (exact match after normalize)
   for (const [alias, canonical] of Object.entries(DISEASE_ALIAS)) {
     if (nq.includes(normalize(alias))) {
       return { canonical, normalized: normalize(alias) };
     }
   }
 
-  // Thử danh sách tên chuẩn
-  // Sort by length descending để match tên dài trước (tránh match "viêm tai" khi muốn "viêm tai giữa")
   const sorted = [...KNOWN_DISEASES].sort((a, b) => b.length - a.length);
   for (const disease of sorted) {
     if (nq.includes(normalize(disease))) {
-      // Tìm canonical từ alias map, hoặc dùng title-case từ KNOWN_DISEASES
-      const canonical = Object.values(DISEASE_ALIAS).find(
-        v => normalize(v) === normalize(disease)
-      ) ?? toTitleCase(disease);
+      const canonical =
+        Object.values(DISEASE_ALIAS).find(v => normalize(v) === normalize(disease)) ??
+        disease.replace(/\b\w/g, c => c.toUpperCase());
       return { canonical, normalized: normalize(disease) };
     }
   }
-
   return null;
-}
-
-function toTitleCase(s: string): string {
-  return s.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function preprocessQuery(raw: string): string {
   let q = raw;
-  const fillers = [
+  [
     /bác sĩ ơi[,\s]*/gi,
     /thưa bác sĩ[,\s]*/gi,
     /cho tôi hỏi[,\s]*/gi,
@@ -172,16 +138,14 @@ function preprocessQuery(raw: string): string {
     /xin hỏi[,\s]*/gi,
     /bác sĩ hãy tư vấn[^,.?]*/gi,
     /hãy tư vấn giúp tôi[^,.?]*/gi,
-  ];
-  fillers.forEach(f => { q = q.replace(f, ''); });
+  ].forEach(f => { q = q.replace(f, ''); });
 
-  const personalInfo = [
+  [
     /tôi là (nam|nữ)[^\.,]*/gi,
     /năm nay \d+ tuổi/gi,
     /tôi \d+ tuổi/gi,
     /\d+ tuổi[,\s]*/gi,
-  ];
-  personalInfo.forEach(p => { q = q.replace(p, ''); });
+  ].forEach(p => { q = q.replace(p, ''); });
 
   q = q.replace(/vừa được (chẩn đoán|xác định) là\s*/gi, '');
   q = q.replace(/^(tôi\s+)?(bị|đang bị|mắc)\s*/i, '');
@@ -192,36 +156,35 @@ function preprocessQuery(raw: string): string {
 
 async function getEmbedding(text: string): Promise<number[]> {
   const res = await fetch(EMBEDDING_API, {
-    method  : 'POST',
-    headers : { 'Content-Type': 'application/json' },
-    body    : JSON.stringify({ texts: [text] }),
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ texts: [text] }),
   });
   if (!res.ok) throw new Error(`Embedding API ${res.status}`);
   return (await res.json()).embeddings[0] as number[];
 }
 
-// ── Main Retrieval Function ────────────────────────────────────────────────
-
+// ─── Main Retrieval ───────────────────────────────────────────────────────────
 export async function retrieveContext(
-  question : string,
-  topK     = 5,
+  question: string,
+  topK = 5,
 ): Promise<RAGResult> {
   const t0             = Date.now();
   const processedQuery = preprocessQuery(question);
   const detectedDisease = detectDisease(question + ' ' + processedQuery);
 
   const makeEmpty = (): RAGResult => ({
-    chunks     : [],
-    hasContext : false,
-    debug      : {
-      originalQuery   : question,
+    chunks    : [],
+    hasContext: false,
+    debug     : {
+      originalQuery  : question,
       processedQuery,
-      retrievalMode   : 'semantic_full',
-      detectedDisease : detectedDisease?.canonical ?? null,
-      threshold       : THRESHOLD_FULL,
-      candidates      : [],
-      passedCount     : 0,
-      elapsedMs       : Date.now() - t0,
+      retrievalMode  : 'semantic_full',
+      detectedDisease: detectedDisease?.canonical ?? null,
+      threshold      : THRESHOLD_FULL,
+      candidates     : [],
+      passedCount    : 0,
+      elapsedMs      : Date.now() - t0,
     },
   });
 
@@ -229,96 +192,86 @@ export async function retrieveContext(
     const collection     = await client.getCollection({ name: COLLECTION_NAME });
     const queryEmbedding = await getEmbedding(processedQuery);
 
-    let results: Awaited<ReturnType<typeof collection.query>>;
-    let retrievalMode : RAGDebugInfo['retrievalMode'];
-    let threshold     : number;
+    let results   : Awaited<ReturnType<typeof collection.query>>;
+    let mode      : RAGDebugInfo['retrievalMode'];
+    let threshold : number;
 
     if (detectedDisease) {
-      // ── MODE 1: Hybrid — filter disease_name, rồi semantic search ────
-      retrievalMode = 'hybrid_filtered';
-      threshold     = THRESHOLD_FILTERED;
+      mode      = 'hybrid_filtered';
+      threshold = THRESHOLD_FILTERED;
 
       results = await collection.query({
-        queryEmbeddings : [queryEmbedding],
-        nResults        : topK,
-        include         : ['documents', 'metadatas', 'distances'] as any,
-        where           : { disease_name: detectedDisease.canonical },
+        queryEmbeddings: [queryEmbedding],
+        nResults       : topK,
+        include        : ['documents', 'metadatas', 'distances'] as any,
+        where          : { disease_name: detectedDisease.canonical },
       });
 
-      // Nếu filter quá chặt không có kết quả → fallback semantic_full
-      const hitCount = results.documents?.[0]?.length ?? 0;
-      if (hitCount === 0) {
-        console.log(`[RAG] Filter "${detectedDisease.canonical}" → 0 hits, fallback to semantic_full`);
-        retrievalMode = 'semantic_full';
-        threshold     = THRESHOLD_FULL;
-        results       = await collection.query({
-          queryEmbeddings : [queryEmbedding],
-          nResults        : topK,
-          include         : ['documents', 'metadatas', 'distances'] as any,
+      if ((results.documents?.[0]?.length ?? 0) === 0) {
+        console.log(`[RAG] Filter "${detectedDisease.canonical}" → 0 hits, fallback`);
+        mode      = 'semantic_full';
+        threshold = THRESHOLD_FULL;
+        results   = await collection.query({
+          queryEmbeddings: [queryEmbedding],
+          nResults       : topK,
+          include        : ['documents', 'metadatas', 'distances'] as any,
         });
       }
     } else {
-      // ── MODE 2: Semantic search toàn collection ───────────────────────
-      retrievalMode = 'semantic_full';
-      threshold     = THRESHOLD_FULL;
-
-      results = await collection.query({
-        queryEmbeddings : [queryEmbedding],
-        nResults        : topK,
-        include         : ['documents', 'metadatas', 'distances'] as any,
+      mode      = 'semantic_full';
+      threshold = THRESHOLD_FULL;
+      results   = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        nResults       : topK,
+        include        : ['documents', 'metadatas', 'distances'] as any,
       });
     }
 
     const docs      = results.documents?.[0] ?? [];
-    const metas     = results.metadatas?.[0] ?? [];
-    const distances = results.distances?.[0] ?? [];
+    const metas     = results.metadatas?.[0]  ?? [];
+    const distances = results.distances?.[0]  ?? [];
 
-    const chunks       : RAGChunk[]                    = [];
-    const candidateDbg : RAGDebugInfo['candidates']    = [];
+    const chunks  : RAGChunk[]                 = [];
+    const dbgList : RAGDebugInfo['candidates'] = [];
 
     for (let i = 0; i < docs.length; i++) {
       const distance = distances[i] ?? 999;
       const meta     = (metas[i] ?? {}) as Record<string, string>;
       const passed   = distance < threshold;
 
-      candidateDbg.push({
-        disease_name : meta.disease_name ?? '',
-        section      : meta.section      ?? '',
-        distance,
-        passed,
-      });
+      dbgList.push({ disease_name: meta.disease_name ?? '', section: meta.section ?? '', distance, passed });
 
       if (passed) {
         chunks.push({
-          content      : docs[i]              ?? '',
-          disease_name : meta.disease_name    ?? '',
-          section      : meta.section         ?? '',
-          keywords     : meta.keywords        ?? '',
+          // ChromaDB document field lưu enriched text (prefix + content)
+          // Lấy phần content thực sự bằng cách bỏ prefix "Bệnh: X - Y.\nNội dung: "
+          content     : extractContent(docs[i] ?? ''),
+          disease_name: meta.disease_name ?? '',
+          section     : meta.section      ?? '',
+          keywords    : meta.keywords     ?? '',
           distance,
         });
       }
     }
 
     chunks.sort((a, b) => a.distance - b.distance);
-    const elapsed = Date.now() - t0;
 
     console.log(
-      `[RAG] mode=${retrievalMode} | disease="${detectedDisease?.canonical ?? '-'}" ` +
-      `| ${chunks.length}/${docs.length} passed | ${elapsed}ms`
+      `[RAG] mode=${mode} | disease="${detectedDisease?.canonical ?? '-'}" | ${chunks.length}/${docs.length} passed | ${Date.now() - t0}ms`
     );
 
     return {
       chunks,
-      hasContext : chunks.length > 0,
-      debug      : {
-        originalQuery   : question,
+      hasContext: chunks.length > 0,
+      debug: {
+        originalQuery  : question,
         processedQuery,
-        retrievalMode,
-        detectedDisease : detectedDisease?.canonical ?? null,
+        retrievalMode  : mode,
+        detectedDisease: detectedDisease?.canonical ?? null,
         threshold,
-        candidates      : candidateDbg,
-        passedCount     : chunks.length,
-        elapsedMs       : elapsed,
+        candidates     : dbgList,
+        passedCount    : chunks.length,
+        elapsedMs      : Date.now() - t0,
       },
     };
   } catch (err) {
@@ -327,37 +280,46 @@ export async function retrieveContext(
   }
 }
 
-// ── System Prompt Builder ──────────────────────────────────────────────────
+/**
+ * Strip enriched prefix từ document text được lưu trong ChromaDB.
+ * Format khi ingest: "Bệnh: X - Y.\nNội dung: <actual content>"
+ * Nếu không có prefix, trả về nguyên text.
+ */
+function extractContent(raw: string): string {
+  const marker = '\nNội dung: ';
+  const idx = raw.indexOf(marker);
+  return idx !== -1 ? raw.slice(idx + marker.length) : raw;
+}
 
-export function buildSystemPrompt(ragResult: RAGResult): string {
-  const BASE =
-    'Bạn là trợ lý y tế AI chuyên nghiệp về Tai Mũi Họng. ' +
-    'Cung cấp thông tin sức khỏe chính xác bằng tiếng Việt. ' +
-    'KHÔNG chẩn đoán thay bác sĩ. Luôn khuyến nghị thăm khám khi cần thiết.';
-
-  if (!ragResult.hasContext) {
-    return (
-      BASE +
-      '\n\nLưu ý: Câu hỏi này không nằm trong cơ sở dữ liệu nội bộ. ' +
-      'Hãy trả lời dựa trên kiến thức chung của bạn và ghi rõ rằng ' +
-      'thông tin không được trích từ hướng dẫn chuyên khoa nội bộ.'
-    );
-  }
+/**
+ * Format RAG chunks thành block text để inject vào user message.
+ * Dùng bởi chat/route.ts — KHÔNG dùng làm system prompt.
+ *
+ * Viết rõ ràng để model hiểu đây là "tài liệu được cung cấp"
+ * nhưng KHÔNG xung đột với system prompt của LM Studio.
+ */
+export function formatRAGContext(ragResult: RAGResult): string {
+  if (!ragResult.hasContext) return '';
 
   const contextBlock = ragResult.chunks
-    .map(
-      (c, i) =>
-        `[Tài liệu ${i + 1}] ${c.disease_name} — ${c.section}\n${c.content}`
+    .map((c, i) =>
+      `[Tài liệu ${i + 1}] ${c.disease_name} — ${c.section}\n${c.content}` // Để nguyên content đã được enrich khi ingest, bao gồm cả phần keywords nếu có
     )
     .join('\n\n---\n\n');
 
   return (
-    'Bạn là bác sĩ tư vấn AI chuyên khoa Tai Mũi Họng. ' +
-    'Dựa vào CÁC TÀI LIỆU Y KHOA nội bộ bên dưới (trích từ Hướng dẫn Bộ Y Tế), ' +
-    'hãy trả lời câu hỏi chính xác, rõ ràng. ' +
-    'Nếu không có trong tài liệu, nói rõ và khuyên thăm khám.\n\n' +
-    '═══ TÀI LIỆU THAM KHẢO NỘI BỘ ═══\n\n' +
+    '【THÔNG TIN TỪ CƠ SỞ DỮ LIỆU Y KHOA NỘI BỘ】\n' +
+    'Dưới đây là các đoạn tài liệu y khoa liên quan được trích từ Hướng dẫn Bộ Y Tế. ' +
+    'Hãy ưu tiên sử dụng thông tin này khi trả lời:\n\n' +
     contextBlock +
-    '\n\n═══════════════════════════════'
+    '\n\n【HẾT TÀI LIỆU NỘI BỘ】'
   );
+}
+
+/**
+ * @deprecated Không dùng nữa — system prompt do LM Studio quản lý.
+ * Giữ lại để không break nếu có file import cũ.
+ */
+export function buildSystemPrompt(ragResult: RAGResult): string {
+  return formatRAGContext(ragResult);
 }

@@ -18,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "chromadb": "^3.4.0",
+    "jose": "^6.2.3",
     "next": "^16.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"

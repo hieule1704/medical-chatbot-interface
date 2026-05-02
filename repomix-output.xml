@@ -1,0 +1,3181 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+app/api/auth/login/route.ts
+app/api/auth/logout/route.ts
+app/api/auth/me/route.ts
+app/api/auth/register/route.ts
+app/api/chat/route.ts
+app/api/conversations/[id]/messages/route.ts
+app/api/conversations/[id]/route.ts
+app/api/conversations/route.ts
+app/api/export/route.ts
+app/api/health/route.ts
+app/favicon.ico
+app/globals.css
+app/layout.tsx
+app/login/page.tsx
+app/page.tsx
+eslint.config.mjs
+lib/auth.ts
+lib/db.ts
+lib/ragService.ts
+next.config.ts
+package.json
+postcss.config.mjs
+public/demo.png
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+rag_backend/build_rag_v2_final.py
+rag_backend/build_rag_v2.py
+rag_backend/embedding_api.py
+rag_backend/peek_db.py
+rag_backend/requirements_rag.txt
+rag_backend/test_rag.py
+README.md
+tailwind.config.js
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/api/health/route.ts">
+/**
+ * app/api/health/route.ts
+ *
+ * Server-side health check — gọi từ frontend định kỳ.
+ * Lý do dùng server-side thay vì frontend gọi thẳng:
+ * - LM Studio (port 1234) và Embedding API (port 8002) là localhost của server
+ * - Browser không thể gọi localhost của server → phải proxy qua Next.js
+ */
+
+import { NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+
+// Timeout ngắn để health check không block UI lâu
+const TIMEOUT_MS = 3000;
+
+async function checkService(url: string): Promise<{ ok: boolean; latencyMs: number }> {
+  const t0 = Date.now();
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+
+    return { ok: res.ok, latencyMs: Date.now() - t0 };
+  } catch {
+    return { ok: false, latencyMs: Date.now() - t0 };
+  }
+}
+
+export async function GET() {
+  // Chạy song song cả 2 để không chờ tuần tự
+  const [lmStudio, embeddingApi] = await Promise.all([
+    checkService('http://127.0.0.1:1234/v1/models'),
+    checkService('http://localhost:8002/health'),
+  ]);
+
+  const allOk = lmStudio.ok && embeddingApi.ok;
+
+  return NextResponse.json({
+    ok: allOk,
+    services: {
+      lmStudio    : { ...lmStudio,     name: 'LM Studio' },
+      embeddingApi: { ...embeddingApi, name: 'Embedding API' },
+    },
+    timestamp: Date.now(),
+  }, {
+    status: 200, // luôn 200 — frontend tự đọc field ok
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+.env.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+data/medical.db*
+data/
+*.db
+*.db-shm
+*.db-wal
+# Python virtual environment
+.venv/
+
+# Data
+rag_ent_knowledge.json
+
+phac_do_y_te/
+</file>
+
+<file path="app/api/auth/login/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { verifyPassword, createSession } from '@/lib/auth';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { username, password } = await req.json();
+    if (!username?.trim() || !password?.trim()) {
+      return NextResponse.json({ error: 'Vui lòng nhập đầy đủ thông tin.' }, { status: 400 });
+    }
+
+    const user = db
+      .prepare('SELECT * FROM users WHERE username = ?')
+      .get(username.trim()) as { id: number; password: string } | undefined;
+
+    if (!user) {
+      return NextResponse.json({ error: 'Username hoặc mật khẩu không đúng.' }, { status: 401 });
+    }
+
+    const valid = await verifyPassword(password, user.password);
+    if (!valid) {
+      return NextResponse.json({ error: 'Username hoặc mật khẩu không đúng.' }, { status: 401 });
+    }
+
+    await createSession(user.id);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Lỗi server.' }, { status: 500 });
+  }
+}
+</file>
+
+<file path="app/api/auth/logout/route.ts">
+import { NextResponse } from 'next/server';
+import { destroySession } from '@/lib/auth';
+
+export async function POST() {
+  await destroySession();
+  return NextResponse.json({ ok: true });
+}
+</file>
+
+<file path="app/api/auth/me/route.ts">
+import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
+
+export async function GET() {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ user: null }, { status: 401 });
+  return NextResponse.json({ user });
+}
+</file>
+
+<file path="app/api/auth/register/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { hashPassword, createSession } from '@/lib/auth';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { username, email, password, full_name } = await req.json();
+
+    if (!username?.trim() || !email?.trim() || !password?.trim()) {
+      return NextResponse.json({ error: 'Vui lòng điền đầy đủ thông tin.' }, { status: 400 });
+    }
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Mật khẩu phải có ít nhất 6 ký tự.' }, { status: 400 });
+    }
+
+    // Check duplicates
+    const existing = db
+      .prepare('SELECT id FROM users WHERE username = ? OR email = ?')
+      .get(username.trim(), email.trim());
+    if (existing) {
+      return NextResponse.json({ error: 'Username hoặc email đã tồn tại.' }, { status: 409 });
+    }
+
+    const hashed = await hashPassword(password);
+    const result = db
+      .prepare('INSERT INTO users (username, email, password, full_name) VALUES (?, ?, ?, ?)')
+      .run(username.trim(), email.trim().toLowerCase(), hashed, full_name?.trim() || null);
+
+    await createSession(result.lastInsertRowid as number);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Lỗi server.' }, { status: 500 });
+  }
+}
+</file>
+
+<file path="app/api/chat/route.ts">
+/**
+ * app/api/chat/route.ts
+ *
+ * Fix so với version cũ:
+ * 1. Context Window Overflow → chỉ gửi RECENT_TURNS lượt cuối cho LLM
+ * 2. System Prompt conflict → KHÔNG gửi system prompt từ code khi RAG tắt,
+ *    để LM Studio system prompt tự xử lý. Khi RAG bật, chỉ inject TÀI LIỆU
+ *    vào user message thay vì override system prompt hoàn toàn.
+ * 3. Prompt logger cập nhật để log rõ strategy đang dùng
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import fs   from 'fs';
+import path from 'path';
+import db   from '@/lib/db';
+import { getSession }                                  from '@/lib/auth';
+import { retrieveContext, formatRAGContext, RAGDebugInfo } from '@/lib/ragService';
+
+export const runtime = 'nodejs';
+
+// ── Config ───────────────────────────────────────────────────────────────────
+// Số lượt hội thoại gần nhất gửi cho LLM (1 lượt = 1 user + 1 assistant)
+// LLaMA 3 8B context 8k tokens ≈ ~10 lượt an toàn với RAG context
+const RECENT_TURNS = 6;   // 6 lượt = 12 tin nhắn
+
+// ── Prompt Logger ─────────────────────────────────────────────────────────────
+function logPrompt(params: {
+  useRag        : boolean;
+  ragDebug      : RAGDebugInfo | null;
+  ragContextText: string | null;   // đoạn text tài liệu inject vào user msg
+  messagesCount : number;
+  sentCount     : number;          // số msg thực sự gửi đi sau truncate
+  allMessages   : { role: string; content: string }[];
+}) {
+  try {
+    const logDir = path.join(process.cwd(), 'logs');
+    fs.mkdirSync(logDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const SEP = '═'.repeat(70);
+    const DIV = '─'.repeat(70);
+    let log = '';
+
+    log += `${SEP}\n`;
+    log += `  RAG PROMPT LOG — ${new Date().toLocaleString('vi-VN')}\n`;
+    log += `${SEP}\n\n`;
+
+    log += `CHẾ ĐỘ RAG      : ${params.useRag ? 'BẬT ✓' : 'TẮT ✗'}\n`;
+    log += `SYSTEM PROMPT   : LM Studio built-in (không override từ code)\n`;
+    log += `LỊCH SỬ HỘI THOẠI: ${params.messagesCount} msgs tổng → gửi ${params.sentCount} msgs (truncated)\n\n`;
+
+    if (params.ragDebug) {
+      const d = params.ragDebug;
+      log += `QUERY GỐC       : ${d.originalQuery}\n`;
+      log += `QUERY EMBED     : ${d.processedQuery}\n`;
+      log += `RETRIEVAL MODE  : ${d.retrievalMode}\n`;
+      log += `DISEASE DETECT  : ${d.detectedDisease ?? '(none)'}\n`;
+      log += `THRESHOLD       : ${d.threshold}\n`;
+      log += `THỜI GIAN       : ${d.elapsedMs}ms\n\n`;
+      log += `CHROMADB CANDIDATES (${d.candidates.length}):\n`;
+      d.candidates.forEach((c, i) => {
+        const status = c.passed ? '✓ PASSED ' : '✗ FILTERED';
+        log += `  [${i + 1}] ${status} | d=${c.distance.toFixed(4)} | ${c.disease_name} — ${c.section}\n`;
+      });
+      log += `\nCHUNKS INJECT VÀO LLM: ${d.passedCount} chunks\n`;
+    } else {
+      log += `RAG: Đã tắt — không query ChromaDB\n`;
+    }
+
+    if (params.ragContextText) {
+      log += `\n${DIV}\n`;
+      log += `TÀI LIỆU RAG INJECT VÀO USER MESSAGE:\n`;
+      log += `${DIV}\n\n`;
+      log += params.ragContextText;
+    }
+
+    log += `\n\n${DIV}\n`;
+    log += `MESSAGES GỬI ĐẾN LM STUDIO (${params.sentCount} messages, NO system override):\n`;
+    log += `${DIV}\n`;
+    params.allMessages.forEach((m, i) => {
+      log += `\n[${i + 1}] ${m.role.toUpperCase()}:\n${m.content}\n`;
+    });
+
+    log += `\n${SEP}\nEND OF LOG\n${SEP}\n`;
+
+    fs.writeFileSync(path.join(logDir, `prompt_${timestamp}.txt`), log, 'utf-8');
+    fs.writeFileSync(path.join(logDir, 'latest.txt'), log, 'utf-8');
+    console.log(`[LOG] → logs/latest.txt`);
+  } catch (err) {
+    console.error('[LOG] Lỗi ghi file:', err);
+  }
+}
+
+// ── Route Handler ─────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { messages, conversationId, useRag = true } = await req.json();
+
+  // Lưu tin nhắn user mới vào DB
+  const lastUserMsg = messages[messages.length - 1];
+  if (conversationId && lastUserMsg?.role === 'user') {
+    db.prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)')
+      .run(conversationId, 'user', lastUserMsg.content);
+    db.prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?")
+      .run(conversationId);
+  }
+
+  // ── Truncate context window ────────────────────────────────────────────────
+  // Giữ RECENT_TURNS * 2 tin nhắn gần nhất, tránh overflow 8k tokens của LLaMA 3 8B
+  const maxMsgs    = RECENT_TURNS * 2;
+  const recentMsgs = messages.length > maxMsgs
+    ? messages.slice(-maxMsgs)
+    : messages;
+
+  if (messages.length > maxMsgs) {
+    console.log(`[CONTEXT] Truncated ${messages.length} → ${recentMsgs.length} messages (RECENT_TURNS=${RECENT_TURNS})`);
+  }
+
+  // ── RAG Pipeline ───────────────────────────────────────────────────────────
+  // STRATEGY: Không override system prompt của LM Studio.
+  // Thay vào đó, inject tài liệu RAG vào đầu TIN NHẮN USER cuối cùng.
+  // LM Studio system prompt vẫn chạy nguyên vẹn → không có xung đột.
+  let ragDebug       : RAGDebugInfo | null = null;
+  let ragContextText : string | null       = null;
+
+  // Clone messages để không mutate original
+  const msgsToSend = recentMsgs.map((m: { role: string; content: string }) => ({ ...m }));
+
+  if (useRag && lastUserMsg?.content) {
+    const ragResult = await retrieveContext(lastUserMsg.content);
+    ragDebug = ragResult.debug;
+
+    if (ragResult.hasContext) {
+      // Format tài liệu RAG thành block text
+      ragContextText = formatRAGContext(ragResult);
+
+      // Inject vào đầu tin nhắn user CUỐI CÙNG trong array gửi đi
+      const lastIdx = msgsToSend.length - 1;
+      if (msgsToSend[lastIdx]?.role === 'user') {
+        msgsToSend[lastIdx] = {
+          role   : 'user',
+          content: `${ragContextText}\n\n---\n\nCâu hỏi của tôi: ${msgsToSend[lastIdx].content}`,
+        };
+      }
+
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`[RAG] ${ragResult.chunks.length} chunks injected vào user message`);
+      ragResult.chunks.forEach((c, i) =>
+        console.log(`  [${i + 1}] ${c.disease_name} — ${c.section} (d=${c.distance.toFixed(4)})`)
+      );
+      console.log('═'.repeat(60) + '\n');
+    } else {
+      console.log('[RAG] No context → LM Studio system prompt handles response\n');
+    }
+  }
+
+  // Log đầy đủ
+  logPrompt({
+    useRag,
+    ragDebug,
+    ragContextText,
+    messagesCount : messages.length,
+    sentCount     : msgsToSend.length,
+    allMessages   : msgsToSend,
+  });
+
+  // ── Gọi LM Studio ─────────────────────────────────────────────────────────
+  // KHÔNG gửi system message từ code → LM Studio dùng built-in system prompt
+  try {
+    const response = await fetch('http://127.0.0.1:1234/v1/chat/completions', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer lm-studio' },
+      body   : JSON.stringify({
+        model      : 'medical-chatbot-v4',
+        messages   : msgsToSend,           // ← NO system role prepended
+        temperature: 0.3,
+        max_tokens : 768,                  // tăng lên 768 vì không có system prompt chiếm token
+        stream     : true,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return NextResponse.json({ error }, { status: response.status });
+    }
+
+    let fullAssistantContent = '';
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader  = response.body!.getReader();
+        const decoder = new TextDecoder();
+
+        // Gửi RAG debug info về frontend trước
+        if (ragDebug) {
+          controller.enqueue(
+            new TextEncoder().encode(`d:${JSON.stringify({ ragDebug })}\n`)
+          );
+        }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+
+            if (data === '[DONE]') {
+              if (conversationId && fullAssistantContent) {
+                db.prepare(
+                  'INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)'
+                ).run(conversationId, 'assistant', fullAssistantContent);
+              }
+              controller.close();
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const text   = parsed.choices?.[0]?.delta?.content ?? '';
+              if (text) {
+                fullAssistantContent += text;
+                controller.enqueue(new TextEncoder().encode(`0:${JSON.stringify(text)}\n`));
+              }
+            } catch { /* skip malformed SSE */ }
+          }
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection     : 'keep-alive',
+      },
+    });
+  } catch (err) {
+    console.error('[chat/route] LM Studio error:', err);
+    return NextResponse.json({ error: 'Lỗi kết nối LM Studio.' }, { status: 500 });
+  }
+}
+</file>
+
+<file path="app/api/conversations/[id]/messages/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getSession } from '@/lib/auth';
+
+type Params = { params: Promise<{ id: string }> };
+
+// POST /api/conversations/[id]/messages — save a message
+export async function POST(req: NextRequest, { params }: Params) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { id } = await params;
+  const convId = parseInt(id, 10);
+
+  // Verify ownership
+  const conv = db
+    .prepare('SELECT id FROM conversations WHERE id = ? AND user_id = ?')
+    .get(convId, user.id);
+  if (!conv) return NextResponse.json({ error: 'Không tìm thấy.' }, { status: 404 });
+
+  const { role, content } = await req.json();
+  if (!role || !content?.trim()) {
+    return NextResponse.json({ error: 'Thiếu dữ liệu.' }, { status: 400 });
+  }
+
+  const result = db
+    .prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)')
+    .run(convId, role, content.trim());
+
+  // Update conversation updated_at
+  db.prepare("UPDATE conversations SET updated_at = datetime('now') WHERE id = ?").run(convId);
+
+  return NextResponse.json({ id: result.lastInsertRowid });
+}
+</file>
+
+<file path="app/api/conversations/[id]/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getSession } from '@/lib/auth';
+
+type Params = { params: Promise<{ id: string }> };
+
+function ownsConversation(userId: number, convId: number) {
+  return db
+    .prepare('SELECT id FROM conversations WHERE id = ? AND user_id = ?')
+    .get(convId, userId);
+}
+
+// GET /api/conversations/[id] — load messages
+export async function GET(_req: NextRequest, { params }: Params) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { id } = await params;
+  const convId = parseInt(id, 10);
+  if (!ownsConversation(user.id, convId)) {
+    return NextResponse.json({ error: 'Không tìm thấy.' }, { status: 404 });
+  }
+
+  const messages = db
+    .prepare('SELECT id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY id ASC')
+    .all(convId);
+
+  return NextResponse.json({ messages });
+}
+
+// PATCH /api/conversations/[id] — rename title
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { id } = await params;
+  const convId = parseInt(id, 10);
+  if (!ownsConversation(user.id, convId)) {
+    return NextResponse.json({ error: 'Không tìm thấy.' }, { status: 404 });
+  }
+
+  const { title } = await req.json();
+  db.prepare("UPDATE conversations SET title = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(title?.trim() || 'Cuộc trò chuyện mới', convId);
+
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE /api/conversations/[id]
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { id } = await params;
+  const convId = parseInt(id, 10);
+  if (!ownsConversation(user.id, convId)) {
+    return NextResponse.json({ error: 'Không tìm thấy.' }, { status: 404 });
+  }
+
+  db.prepare('DELETE FROM conversations WHERE id = ?').run(convId);
+  return NextResponse.json({ ok: true });
+}
+</file>
+
+<file path="app/api/conversations/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getSession } from '@/lib/auth';
+
+// GET /api/conversations — list all conversations for current user
+export async function GET() {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const conversations = db
+    .prepare(`
+      SELECT c.id, c.title, c.created_at, c.updated_at,
+             COUNT(m.id) as message_count
+      FROM conversations c
+      LEFT JOIN messages m ON m.conversation_id = c.id
+      WHERE c.user_id = ?
+      GROUP BY c.id
+      ORDER BY c.updated_at DESC
+    `)
+    .all(user.id);
+
+  return NextResponse.json({ conversations });
+}
+
+// POST /api/conversations — create new conversation
+export async function POST(req: NextRequest) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const { title } = await req.json();
+  const result = db
+    .prepare('INSERT INTO conversations (user_id, title) VALUES (?, ?)')
+    .run(user.id, title?.trim() || 'Cuộc trò chuyện mới');
+
+  return NextResponse.json({ id: result.lastInsertRowid });
+}
+</file>
+
+<file path="app/api/export/route.ts">
+import { NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getSession } from '@/lib/auth';
+
+export async function GET() {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+
+  const rows = db.prepare(`
+    SELECT
+      c.id            AS conv_id,
+      c.title         AS conv_title,
+      c.created_at    AS conv_date,
+      m.role,
+      m.content,
+      m.created_at    AS msg_time
+    FROM conversations c
+    JOIN messages m ON m.conversation_id = c.id
+    WHERE c.user_id = ?
+    ORDER BY c.id ASC, m.id ASC
+  `).all(user.id) as {
+    conv_id: number; conv_title: string; conv_date: string;
+    role: string; content: string; msg_time: string;
+  }[];
+
+  if (rows.length === 0) {
+    return NextResponse.json({ error: 'Chưa có lịch sử hội thoại.' }, { status: 404 });
+  }
+
+  const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+
+  // Format datetime: "2026-03-12 08:58:44" → "12/03/2026 08:58"
+  const fmtDate = (s: string) => {
+    const d = new Date(s.replace(' ', 'T') + 'Z');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const min = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  };
+
+  // Group messages by conversation for session numbering
+  let sessionNum = 0;
+  let lastConvId = -1;
+
+  const lines: string[] = [
+    // BOM for Excel Vietnamese
+    '\uFEFF' + ['Phiên hội thoại', 'Chủ đề', 'Thời gian bắt đầu', 'Người gửi', 'Nội dung', 'Thời gian gửi']
+      .map(esc).join(','),
+  ];
+
+  for (const r of rows) {
+    if (r.conv_id !== lastConvId) {
+      sessionNum++;
+      lastConvId = r.conv_id;
+    }
+
+    const sender = r.role === 'user' ? `${user.full_name || user.username}` : 'Medical AI';
+    const sessionLabel = `Phiên ${sessionNum}`;
+    // Title: use actual title or fallback to "Chủ đề không đặt tên"
+    const title = r.conv_title === 'Cuộc trò chuyện mới' ? '(Chưa đặt tên)' : r.conv_title;
+
+    lines.push(
+      [sessionLabel, title, fmtDate(r.conv_date), sender, r.content, fmtDate(r.msg_time)]
+        .map(v => esc(String(v)))
+        .join(',')
+    );
+  }
+
+  const csv = lines.join('\r\n');
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `MedAI_LichSuHoiThoai_${user.username}_${date}.csv`;
+
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    },
+  });
+}
+</file>
+
+<file path="app/globals.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</file>
+
+<file path="app/layout.tsx">
+import type { Metadata } from 'next'
+import { Be_Vietnam_Pro } from 'next/font/google'
+import './globals.css'
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['vietnamese', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-be-vietnam',
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
+  title: 'Medical AI Assistant',
+  description: 'Trợ lý y tế AI - Đồ án tốt nghiệp',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="vi" className={beVietnamPro.variable}>
+      <body className={beVietnamPro.className}>{children}</body>
+    </html>
+  )
+}
+</file>
+
+<file path="app/login/page.tsx">
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+type Mode = 'login' | 'register';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>('login');
+  const [form, setForm] = useState({ username: '', email: '', password: '', full_name: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const body = mode === 'login'
+      ? { username: form.username, password: form.password }
+      : form;
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Đã có lỗi xảy ra.'); return; }
+      router.push('/');
+      router.refresh();
+    } catch {
+      setError('Không thể kết nối server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl mx-auto mb-4">🩺</div>
+          <h1 className="text-2xl font-bold text-white">Medical AI Assistant</h1>
+          <p className="text-gray-500 text-sm mt-1">Trợ lý y tế AI tiếng Việt</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
+
+          {/* Tab */}
+          <div className="flex gap-1 bg-gray-800 rounded-xl p-1 mb-6">
+            {(['login', 'register'] as Mode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(''); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  mode === m ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {m === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Họ và tên</label>
+                <input
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  placeholder="Nguyễn Văn A"
+                  value={form.full_name}
+                  onChange={e => set('full_name', e.target.value)}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5 font-medium">Username</label>
+              <input
+                required
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                placeholder="username"
+                value={form.username}
+                onChange={e => set('username', e.target.value)}
+                autoComplete="username"
+              />
+            </div>
+
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Email</label>
+                <input
+                  required
+                  type="email"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  placeholder="example@email.com"
+                  value={form.email}
+                  onChange={e => set('email', e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5 font-medium">Mật khẩu</label>
+              <input
+                required
+                type="password"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                placeholder={mode === 'register' ? 'Tối thiểu 6 ký tự' : '••••••••'}
+                value={form.password}
+                onChange={e => set('password', e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+            </div>
+
+            {error && (
+              <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/60 rounded-xl px-4 py-2.5">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-all duration-200 mt-2"
+            >
+              {loading ? 'Đang xử lý...' : mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-xs text-gray-600 mt-6">
+          AI không thay thế bác sĩ · Đồ án tốt nghiệp 2025
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="app/page.tsx">
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+type Message = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  ragDebug?: RAGDebugInfo | null;
+};
+type Conversation = { id: number; title: string; message_count: number; updated_at: string };
+type User = { id: number; username: string; email: string; full_name: string | null };
+interface RAGCandidate { disease_name: string; section: string; distance: number; passed: boolean; }
+interface RAGDebugInfo {
+  originalQuery: string; processedQuery: string;
+  retrievalMode: 'hybrid_filtered' | 'semantic_full';
+  detectedDisease: string | null; threshold: number;
+  candidates: RAGCandidate[]; passedCount: number; elapsedMs: number;
+}
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const SendIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+const CopyIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+const RetryIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>;
+const EditIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+const MenuIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>;
+const CheckIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>;
+const TrashIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>;
+const DownloadIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+const LogoutIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+const BugIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 2l1.5 1.5"/><path d="M14.5 3.5L16 2"/><path d="M9 7.5a3 3 0 0 1 6 0v4a3 3 0 0 1-6 0v-4z"/><path d="M6.5 11H4a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h2"/><path d="M17.5 11H20a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2"/><path d="M9 17v3"/><path d="M15 17v3"/><path d="M4.5 7.5l2.5 2"/><path d="M19.5 7.5L17 9.5"/></svg>;
+const FilterIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+const GlobeIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
+const SunIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
+const MoonIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
+const ArrowDownIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>;
+const ChevronIcon = ({ open }: { open: boolean }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+    style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
+
+// ── Theme CSS Variables ────────────────────────────────────────────────────
+const DARK_THEME = {
+  '--bg-base':       '#030712',
+  '--bg-surface':    '#0f172a',
+  '--bg-elevated':   '#1e293b',
+  '--bg-subtle':     '#1e293b80',
+  '--border':        '#1e293b',
+  '--border-mid':    '#334155',
+  '--text-primary':  '#f1f5f9',
+  '--text-secondary':'#94a3b8',
+  '--text-muted':    '#475569',
+  '--text-faint':    '#1e293b',
+  '--accent':        '#10b981',
+  '--accent-dim':    '#10b98120',
+  '--accent-border': '#10b98130',
+  '--user-bubble':   '#1d4ed8',
+  '--shadow':        '0 4px 24px #00000060',
+};
+
+const LIGHT_THEME = {
+  '--bg-base':       '#f8fafc',
+  '--bg-surface':    '#ffffff',
+  '--bg-elevated':   '#f1f5f9',
+  '--bg-subtle':     '#f8fafc80',
+  '--border':        '#e2e8f0',
+  '--border-mid':    '#cbd5e1',
+  '--text-primary':  '#0f172a',
+  '--text-secondary':'#475569',
+  '--text-muted':    '#94a3b8',
+  '--text-faint':    '#e2e8f0',
+  '--accent':        '#059669',
+  '--accent-dim':    '#05966910',
+  '--accent-border': '#05966930',
+  '--user-bubble':   '#1d4ed8',
+  '--shadow':        '0 4px 24px #0f172a18',
+};
+
+// ── RAG Debug Panel ────────────────────────────────────────────────────────
+function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | undefined; ragEnabled: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!ragEnabled) return (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6,
+      padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)',
+      background: 'var(--bg-elevated)', width: 'fit-content' }}>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+        RAG: TẮT — model dùng kiến thức nền
+      </span>
+    </div>
+  );
+  if (!debug) return null;
+
+  const hasContext  = debug.passedCount > 0;
+  const isHybrid    = debug.retrievalMode === 'hybrid_filtered';
+  const queryChanged = debug.originalQuery.trim() !== debug.processedQuery.trim();
+
+  return (
+    <div style={{ marginTop: 8, borderRadius: 12, border: '1px solid var(--border)',
+      background: 'var(--bg-surface)', overflow: 'hidden', maxWidth: 520, fontSize: 12 }}>
+
+      {/* Header */}
+      <button onClick={() => setExpanded(v => !v)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px',
+        background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+        color: 'var(--text-secondary)',
+      }}>
+        <BugIcon />
+
+        <span style={{
+          display: 'flex', alignItems: 'center', gap: 4, padding: '2px 7px',
+          borderRadius: 4, fontWeight: 700, fontFamily: 'monospace', fontSize: 10,
+          background: isHybrid ? '#7c3aed20' : '#1d4ed820',
+          color: isHybrid ? '#a78bfa' : '#60a5fa',
+          border: `1px solid ${isHybrid ? '#7c3aed30' : '#1d4ed830'}`,
+        }}>
+          {isHybrid ? <><FilterIcon /> HYBRID</> : <><GlobeIcon /> SEMANTIC</>}
+        </span>
+
+        {debug.detectedDisease
+          ? <span style={{ color: '#c4b5fd', fontWeight: 500, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{debug.detectedDisease}</span>
+          : <span style={{ color: 'var(--text-muted)', flex: 1, textAlign: 'left', fontFamily: 'monospace' }}>no disease detected</span>
+        }
+
+        <span style={{
+          padding: '2px 8px', borderRadius: 99, fontWeight: 700, flexShrink: 0,
+          background: hasContext ? '#10b98115' : '#f59e0b10',
+          color: hasContext ? '#10b981' : '#f59e0b',
+          border: `1px solid ${hasContext ? '#10b98125' : '#f59e0b20'}`,
+        }}>
+          {hasContext ? `✓ ${debug.passedCount} docs` : '⚠ fallback'}
+        </span>
+
+        <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>{debug.elapsedMs}ms</span>
+        <ChevronIcon open={expanded} />
+      </button>
+
+      {expanded && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Query pipeline */}
+          <div>
+            <p style={{ color: 'var(--text-muted)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: 10, marginBottom: 6 }}>Query pipeline</p>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'monospace', fontSize: 11 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>raw:</span>
+                <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{debug.originalQuery}</span>
+              </div>
+              {queryChanged && <>
+                <div style={{ height: 1, background: 'var(--border)' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <span style={{ color: '#60a5fa', flexShrink: 0 }}>→ embed:</span>
+                  <span style={{ color: '#93c5fd', wordBreak: 'break-all' }}>{debug.processedQuery}</span>
+                </div>
+              </>}
+              {debug.detectedDisease && <>
+                <div style={{ height: 1, background: 'var(--border)' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <span style={{ color: '#a78bfa', flexShrink: 0 }}>filter:</span>
+                  <span style={{ color: '#c4b5fd' }}>disease_name = &quot;{debug.detectedDisease}&quot;</span>
+                </div>
+              </>}
+            </div>
+          </div>
+
+          {/* Candidates */}
+          <div>
+            <p style={{ color: 'var(--text-muted)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: 10, marginBottom: 6 }}>
+              ChromaDB results (threshold = {debug.threshold})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {debug.candidates.map((c, i) => (
+                <div key={i} style={{
+                  borderRadius: 8, padding: '7px 10px',
+                  background: c.passed ? '#10b98108' : 'var(--bg-elevated)',
+                  border: `1px solid ${c.passed ? '#10b98120' : 'var(--border)'}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 600, color: c.passed ? '#10b981' : 'var(--text-muted)', fontSize: 11 }}>{c.disease_name}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>— {c.section}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8, flexShrink: 0, fontFamily: 'monospace', fontSize: 11 }}>
+                      <span style={{ color: c.passed ? '#10b981' : 'var(--text-muted)' }}>{c.distance.toFixed(4)}</span>
+                      <span style={{ fontWeight: 700, color: c.passed ? '#10b981' : 'var(--text-muted)' }}>{c.passed ? '✓' : '✗'}</span>
+                    </div>
+                  </div>
+                  <div style={{ height: 3, width: '100%', background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 99,
+                      width: `${Math.min(c.distance, 1) * 100}%`,
+                      background: c.passed ? '#10b981' : c.distance < 0.7 ? '#f59e0b' : '#475569',
+                    }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {!hasContext && (
+            <div style={{ borderRadius: 8, padding: '7px 10px', background: '#f59e0b08', border: '1px solid #f59e0b20' }}>
+              <p style={{ color: '#f59e0b', fontSize: 11 }}>
+                Không có chunk nào vượt ngưỡng {debug.threshold}. Model trả lời từ kiến thức nền.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
+
+// ── Service Health Types & Hook ───────────────────────────────────────────
+interface ServiceStatus { ok: boolean; latencyMs: number; name: string; }
+interface HealthData {
+  ok: boolean;
+  services: { lmStudio: ServiceStatus; embeddingApi: ServiceStatus; };
+  timestamp: number;
+}
+type HealthState = 'checking' | 'ok' | 'degraded' | 'down';
+
+function useServiceHealth(intervalMs = 15000) {
+  const [health, setHealth]     = useState<HealthData | null>(null);
+  const [state, setState]       = useState<HealthState>('checking');
+  const [expanded, setExpanded] = useState(false);
+
+  const check = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/health', { cache: 'no-store' });
+      const data = await res.json() as HealthData;
+      setHealth(data);
+      if (data.ok) setState('ok');
+      else if (data.services.lmStudio.ok || data.services.embeddingApi.ok) setState('degraded');
+      else setState('down');
+    } catch {
+      setState('down');
+      setHealth(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    check();
+    const id = setInterval(check, intervalMs);
+    return () => clearInterval(id);
+  }, [check, intervalMs]);
+
+  return { health, state, expanded, setExpanded, check };
+}
+
+function StatusIndicator() {
+  const { health, state, expanded, setExpanded, check } = useServiceHealth(15000);
+
+  const cfg: Record<HealthState, { dot: string; pulse: boolean; label: string; bg: string; border: string }> = {
+    checking: { dot: '#94a3b8', pulse: false, label: 'Đang kiểm tra...', bg: 'var(--bg-elevated)', border: 'var(--border)'    },
+    ok      : { dot: '#10b981', pulse: true,  label: 'Hệ thống OK',      bg: '#10b98108',         border: '#10b98125'         },
+    degraded: { dot: '#f59e0b', pulse: true,  label: 'Một dịch vụ lỗi',  bg: '#f59e0b08',         border: '#f59e0b25'         },
+    down    : { dot: '#ef4444', pulse: false, label: 'Mất kết nối',       bg: '#ef444408',         border: '#ef444425'         },
+  };
+  const c = cfg[state];
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <button onClick={() => setExpanded(v => !v)} title="Trạng thái dịch vụ"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px',
+          borderRadius: 99, cursor: 'pointer', border: `1px solid ${c.border}`,
+          background: c.bg, transition: 'all 0.2s' }}>
+        <span style={{ position: 'relative', width: 8, height: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: c.dot,
+            animation: c.pulse ? 'healthPulse 2s ease-in-out infinite' : 'none' }} />
+          {c.pulse && <span style={{ position: 'absolute', inset: -2, borderRadius: '50%',
+            background: c.dot, opacity: 0.3, animation: 'healthRing 2s ease-in-out infinite' }} />}
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 500, color: c.dot, whiteSpace: 'nowrap' }}>{c.label}</span>
+      </button>
+
+      {expanded && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setExpanded(false)} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 264,
+            zIndex: 50, background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+            borderRadius: 12, boxShadow: 'var(--shadow)', overflow: 'hidden',
+            animation: 'dropIn 0.15s cubic-bezier(0.16,1,0.3,1)' }}>
+            <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>Trạng thái dịch vụ</span>
+              <button onClick={(e) => { e.stopPropagation(); check(); }}
+                style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
+                ↻ Refresh
+              </button>
+            </div>
+            <div style={{ padding: '6px 0' }}>
+              {health ? (
+                [
+                  { icon: '🤖', label: 'LM Studio',    data: health.services.lmStudio     },
+                  { icon: '🧬', label: 'Embedding API', data: health.services.embeddingApi },
+                ].map(({ icon, label, data }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', padding: '7px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>{icon}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {data.ok && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{data.latencyMs}ms</span>}
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+                        background: data.ok ? '#10b98115' : '#ef444415',
+                        color: data.ok ? '#10b981' : '#ef4444',
+                        border: `1px solid ${data.ok ? '#10b98125' : '#ef444425'}` }}>
+                        {data.ok ? '● ONLINE' : '● OFFLINE'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                  Không thể kết nối server
+                </div>
+              )}
+            </div>
+            {health && (
+              <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)',
+                fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                Cập nhật: {new Date(health.timestamp).toLocaleTimeString('vi-VN')} · tự động mỗi 15s
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Chat() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [useRag, setUseRag] = useState(true);
+  const [showDebug, setShowDebug] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  // ── Smart scroll state ──────────────────────────────────────────────────
+  // userScrolled = true means user manually scrolled up → don't auto-scroll
+  const [userScrolled, setUserScrolled] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isStreamingRef = useRef(false);
+
+  // Apply CSS variables whenever darkMode changes
+  useEffect(() => {
+    const theme = darkMode ? DARK_THEME : LIGHT_THEME;
+    const root = document.documentElement;
+    Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
+  }, [darkMode]);
+
+  // Persist preference
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) setDarkMode(saved === 'dark');
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  // ── Smart scroll logic ───────────────────────────────────────────────────
+  // Track if user scrolled away from bottom
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const scrolledAway = distFromBottom > 80;
+      // Only register as "user scrolled" if not currently streaming
+      if (!isStreamingRef.current) {
+        setUserScrolled(scrolledAway);
+      }
+      setShowScrollBtn(scrolledAway);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll: only when user hasn't scrolled away OR when streaming is starting
+  const scrollToBottom = useCallback((force = false) => {
+    if (!userScrolled || force) {
+      bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [userScrolled]);
+
+  // Scroll when new message added (non-streaming)
+  useEffect(() => {
+    if (!isStreamingRef.current) {
+      scrollToBottom();
+    }
+  }, [messages.length, scrollToBottom]);
+
+  // Auth, conversations, messages loading
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(d => {
+      if (!d.user) { router.replace('/login'); return; }
+      setUser(d.user); setAuthLoading(false);
+    }).catch(() => router.replace('/login'));
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/conversations').then(r => r.json()).then(d => setConversations(d.conversations ?? []));
+  }, [user]);
+
+  useEffect(() => {
+    if (!activeConvId) { setMessages([]); return; }
+    fetch(`/api/conversations/${activeConvId}`).then(r => r.json()).then(d => {
+      setMessages((d.messages ?? []).map((m: { id: number; role: 'user' | 'assistant'; content: string; created_at: string }) => ({
+        id: String(m.id), role: m.role, content: m.content,
+        timestamp: new Date(m.created_at), ragDebug: null,
+      })));
+    });
+  }, [activeConvId]);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+    }
+  }, [input]);
+
+  const createConversation = useCallback(async (title: string): Promise<number> => {
+    const res = await fetch('/api/conversations', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const { id } = await res.json();
+    const list = await fetch('/api/conversations').then(r => r.json());
+    setConversations(list.conversations ?? []);
+    return id;
+  }, []);
+
+  const sendMessages = useCallback(async (convId: number, msgs: Message[], replaceId?: string) => {
+    setIsLoading(true); setError(null);
+    isStreamingRef.current = true;
+    // Reset userScrolled when sending — snap to bottom
+    setUserScrolled(false);
+    bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: msgs.map(({ role, content }) => ({ role, content })), conversationId: convId, useRag }),
+      });
+      if (!res.ok) throw new Error();
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let content = '';
+      let parsedDebug: RAGDebugInfo | null = null;
+      let tokenCount = 0;
+
+      const assistantMsg: Message = {
+        id: replaceId ?? `ai-${Date.now()}`, role: 'assistant', content: '', timestamp: new Date(), ragDebug: null,
+      };
+      setMessages(prev => replaceId ? prev.map(m => m.id === replaceId ? assistantMsg : m) : [...prev, assistantMsg]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('d:')) {
+            try { const p = JSON.parse(line.slice(2)); if (p.ragDebug) parsedDebug = p.ragDebug; } catch { /* skip */ }
+            continue;
+          }
+          if (!line.startsWith('0:')) continue;
+          try {
+            content += JSON.parse(line.slice(2));
+            tokenCount++;
+            const c = content; const d = parsedDebug;
+            setMessages(prev => prev.map(m => m.id === assistantMsg.id ? { ...m, content: c, ragDebug: d } : m));
+            // Auto-scroll every ~10 tokens if user hasn't scrolled away
+            if (tokenCount % 10 === 0 && !userScrolled) {
+              bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      // Final scroll after streaming ends
+      isStreamingRef.current = false;
+      if (!userScrolled) {
+        setTimeout(() => bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }
+
+      const currentConv = conversations.find(c => c.id === convId);
+      const firstUserMsg = msgs.find(m => m.role === 'user');
+      if ((!currentConv || currentConv.title === 'Cuộc trò chuyện mới') && firstUserMsg && !replaceId) {
+        const raw = firstUserMsg.content.trim();
+        await fetch(`/api/conversations/${convId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: raw.length > 50 ? raw.slice(0, 47) + '...' : raw }),
+        });
+      }
+      fetch('/api/conversations').then(r => r.json()).then(d => setConversations(d.conversations ?? []));
+    } catch {
+      setError('Không thể kết nối đến LM Studio.');
+      isStreamingRef.current = false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversations, useRag, userScrolled]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim() || isLoading) return;
+    let convId = activeConvId;
+    if (!convId) { convId = await createConversation('Cuộc trò chuyện mới'); setActiveConvId(convId); }
+    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: input.trim(), timestamp: new Date() };
+    const updated = [...messages, userMsg];
+    setMessages(updated); setInput('');
+    await sendMessages(convId, updated);
+  };
+
+  const handleRetry = async (msgId: string) => {
+    if (!activeConvId || isLoading) return;
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx !== -1) await sendMessages(activeConvId, messages.slice(0, idx), msgId);
+  };
+
+  const submitEdit = async (msgId: string) => {
+    if (!activeConvId || !editText.trim() || isLoading) return;
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx === -1) return;
+    const newMsgs = [...messages.slice(0, idx), { ...messages[idx], content: editText.trim() }];
+    setMessages(newMsgs); setEditingId(null);
+    await sendMessages(activeConvId, newMsgs);
+  };
+
+  const handleCopy = async (id: string, content: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id); setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const deleteConversation = async (id: number) => {
+    await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (activeConvId === id) { setActiveConvId(null); setMessages([]); }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/login');
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export');
+      if (!res.ok) { alert('Chưa có lịch sử để xuất.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `lich-su-${user?.username}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } finally { setExporting(false); }
+  };
+
+  const fmt = (s: string) => new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+  const fmtT = (d: Date) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+  // Shared style helpers (CSS variable-based, adapts to both themes)
+  const s = {
+    base:    { background: 'var(--bg-base)',    color: 'var(--text-primary)',    transition: 'background 0.25s, color 0.25s' },
+    surface: { background: 'var(--bg-surface)', borderRight: '1px solid var(--border)' },
+    header:  { background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(12px)' },
+    input:   { background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)', color: 'var(--text-primary)', outline: 'none' },
+    btn: (active: boolean, activeStyle: object) => ({
+      border: `1px solid ${active ? 'transparent' : 'var(--border-mid)'}`,
+      background: active ? undefined : 'var(--bg-elevated)',
+      color: active ? undefined : 'var(--text-muted)',
+      cursor: 'pointer', transition: 'all 0.15s',
+      ...(active ? activeStyle : {}),
+    }),
+  };
+
+  if (authLoading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: 'var(--accent)', fontSize: 14, animation: 'pulse 1.5s infinite' }}>Đang tải...</div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', ...s.base }}>
+
+      {/* ══ SIDEBAR ═══════════════════════════════════════════════════════ */}
+      <aside style={{
+        display: 'flex', flexDirection: 'column', flexShrink: 0,
+        width: sidebarOpen ? 256 : 0, overflow: 'hidden',
+        transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
+        ...s.surface,
+      }}>
+        {/* Profile */}
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+              {user?.username?.[0]?.toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.full_name || user?.username}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
+            </div>
+          </div>
+          <button onClick={async () => { const id = await createConversation('Cuộc trò chuyện mới'); setActiveConvId(id); setMessages([]); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, transition: 'all 0.15s' }}>
+            <span style={{ fontSize: 16, fontWeight: 300, lineHeight: 1 }}>+</span>
+            <span>Cuộc trò chuyện mới</span>
+          </button>
+        </div>
+
+        {/* Conversation list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {conversations.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 40, padding: '0 12px', lineHeight: 1.6 }}>Chưa có cuộc trò chuyện nào</p>
+          )}
+          {conversations.map(conv => (
+            <div key={conv.id} style={{ display: 'flex', alignItems: 'center', gap: 4, borderRadius: 10, background: conv.id === activeConvId ? 'var(--bg-elevated)' : 'transparent', transition: 'background 0.15s' }}>
+              <button onClick={() => setActiveConvId(conv.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', padding: '9px 12px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <p style={{ fontSize: 13, color: conv.id === activeConvId ? 'var(--text-primary)' : 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>{conv.title}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{fmt(conv.updated_at)} · {conv.message_count} tin</p>
+              </button>
+              <button onClick={() => deleteConversation(conv.id)} style={{ padding: 6, marginRight: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}>
+                <TrashIcon />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Sidebar footer */}
+        <div style={{ padding: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <button onClick={handleExport} disabled={exporting} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, width: '100%', textAlign: 'left', transition: 'color 0.15s' }}>
+            <DownloadIcon /><span>{exporting ? 'Đang xuất...' : 'Xuất lịch sử CSV'}</span>
+          </button>
+          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, width: '100%', textAlign: 'left', transition: 'color 0.15s' }}>
+            <LogoutIcon /><span>Đăng xuất</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ══ MAIN ══════════════════════════════════════════════════════════ */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+
+        {/* Header */}
+        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', flexShrink: 0, ...s.header }}>
+          <button onClick={() => setSidebarOpen(v => !v)} style={{ padding: 6, borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}><MenuIcon /></button>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✚</div>
+          <h1 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+            {conversations.find(c => c.id === activeConvId)?.title ?? 'Medical AI Assistant'}
+          </h1>
+
+          {/* Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+
+            {/* Dark/Light toggle */}
+            <button onClick={() => setDarkMode(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500, ...s.btn(false, {}) }}>
+              {darkMode ? <SunIcon /> : <MoonIcon />}
+              <span style={{ display: window.innerWidth > 640 ? 'inline' : 'none' }}>{darkMode ? 'Light' : 'Dark'}</span>
+            </button>
+
+            {/* Debug toggle */}
+            <button onClick={() => setShowDebug(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600, ...s.btn(showDebug, { background: '#7c3aed20', color: '#a78bfa', border: '1px solid #7c3aed30' }) }}>
+              <BugIcon /><span style={{ display: window.innerWidth > 640 ? 'inline' : 'none' }}>Debug</span>
+            </button>
+
+            {/* RAG toggle */}
+            <button onClick={() => setUseRag(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, fontSize: 12, fontWeight: 700, ...s.btn(useRag, { background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }) }}>
+              {useRag ? '● RAG BẬT' : '○ RAG TẮT'}
+            </button>
+          </div>
+
+          {/* Service Status Indicator */}
+          <StatusIndicator />
+        </header>
+
+        {/* Messages area */}
+        <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+          <div style={{ maxWidth: 768, margin: '0 auto', padding: '32px 16px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* Empty state */}
+            {messages.length === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '55vh', textAlign: 'center', gap: 20 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🩺</div>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+                    Xin chào{user?.full_name ? `, ${user.full_name.split(' ').pop()}` : ''}!
+                  </h2>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, maxWidth: 280, lineHeight: 1.6 }}>Hãy mô tả triệu chứng hoặc đặt câu hỏi sức khỏe.</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', maxWidth: 420 }}>
+                  {[
+                    'Triệu chứng của viêm amidan cấp là gì?',
+                    'Phác đồ điều trị viêm tai giữa ở trẻ em',
+                    'Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?',
+                    'Liệt dây thần kinh VII ngoại biên điều trị thế nào?',
+                  ].map(p => (
+                    <button key={p} onClick={() => setInput(p)} style={{
+                      textAlign: 'left', padding: '10px 14px', borderRadius: 12,
+                      border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                      color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, lineHeight: 1.5,
+                      transition: 'all 0.15s',
+                    }}>{p}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Message list */}
+            {messages.map((m, idx) => (
+              <div key={m.id} style={{ display: 'flex', gap: 12, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginTop: 4,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700,
+                  background: m.role === 'user' ? 'var(--user-bubble)' : 'var(--accent-dim)',
+                  color: m.role === 'user' ? '#fff' : 'var(--accent)',
+                  border: m.role === 'assistant' ? '1px solid var(--accent-border)' : 'none',
+                }}>
+                  {m.role === 'user' ? (user?.username?.[0]?.toUpperCase() ?? 'U') : '✚'}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: '82%', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  {/* Edit mode */}
+                  {editingId === m.id ? (
+                    <div style={{ width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--accent-border)', borderRadius: 16, padding: 12 }}>
+                      <textarea value={editText} onChange={e => setEditText(e.target.value)}
+                        style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 13, resize: 'none', lineHeight: 1.6 }}
+                        rows={3} autoFocus />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+                        <button onClick={() => setEditingId(null)} style={{ padding: '4px 12px', fontSize: 12, color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', cursor: 'pointer' }}>Hủy</button>
+                        <button onClick={() => submitEdit(m.id)} style={{ padding: '4px 12px', fontSize: 12, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Gửi lại</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '12px 16px', borderRadius: 16, fontSize: 14, lineHeight: 1.65,
+                      background: m.role === 'user' ? 'var(--user-bubble)' : 'var(--bg-elevated)',
+                      color: m.role === 'user' ? '#fff' : 'var(--text-primary)',
+                      border: m.role === 'assistant' ? '1px solid var(--border)' : 'none',
+                      borderBottomRightRadius: m.role === 'user' ? 4 : 16,
+                      borderBottomLeftRadius: m.role === 'assistant' ? 4 : 16,
+                    }}>
+                      <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{m.content}</p>
+                    </div>
+                  )}
+
+                  {/* RAG debug */}
+                  {m.role === 'assistant' && showDebug && editingId !== m.id && (
+                    <RAGDebugPanel debug={m.ragDebug} ragEnabled={useRag} />
+                  )}
+
+                  {/* Action bar */}
+                  {editingId !== m.id && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, paddingLeft: 4,
+                      flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtT(m.timestamp)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2, opacity: 0 }}
+                        className="msg-actions"
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '0')}>
+                        <button onClick={() => handleCopy(m.id, m.content)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: 'none', background: 'var(--bg-elevated)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>
+                          {copiedId === m.id ? <><CheckIcon /><span>Đã copy</span></> : <><CopyIcon /><span>Copy</span></>}
+                        </button>
+                        {m.role === 'assistant' && idx === messages.length - 1 && (
+                          <button onClick={() => handleRetry(m.id)} disabled={isLoading}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: 'none', background: 'var(--bg-elevated)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, opacity: isLoading ? 0.4 : 1 }}>
+                            <RetryIcon /><span>Thử lại</span>
+                          </button>
+                        )}
+                        {m.role === 'user' && (
+                          <button onClick={() => { setEditingId(m.id); setEditText(m.content); }} disabled={isLoading}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, border: 'none', background: 'var(--bg-elevated)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, opacity: isLoading ? 0.4 : 1 }}>
+                            <EditIcon /><span>Sửa</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✚</div>
+                <div style={{ padding: '12px 16px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 16, borderBottomLeftRadius: 4, display: 'flex', gap: 5, alignItems: 'center' }}>
+                  {[0, 150, 300].map(delay => (
+                    <span key={delay} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: `bounce 1s ${delay}ms infinite` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontSize: 14, background: '#7f1d1d20', border: '1px solid #7f1d1d40', borderRadius: 12, padding: '10px 16px' }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            {/* Bottom anchor for scroll */}
+            <div ref={bottomAnchorRef} style={{ height: 1 }} />
+          </div>
+
+          {/* Scroll-to-bottom button */}
+          {showScrollBtn && (
+            <button onClick={() => { setUserScrolled(false); bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' }); }}
+              style={{
+                position: 'sticky', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+                borderRadius: 99, background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+                color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                boxShadow: 'var(--shadow)', zIndex: 10, marginTop: -48,
+                animation: 'fadeIn 0.2s ease',
+              }}>
+              <ArrowDownIcon /> Về cuối
+            </button>
+          )}
+        </main>
+
+        {/* Input */}
+        <footer style={{ flexShrink: 0, padding: '16px', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+          <div style={{ maxWidth: 768, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, ...s.input, borderRadius: 18, padding: '12px 16px' }}>
+              <textarea ref={textareaRef}
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 14, resize: 'none', lineHeight: 1.6, minHeight: 24, maxHeight: 160, fontFamily: 'inherit' }}
+                value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                placeholder="Nhập triệu chứng hoặc câu hỏi... (Enter để gửi)"
+                disabled={isLoading} rows={1} />
+              <button onClick={() => handleSubmit()} disabled={isLoading || !input.trim()}
+                style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                  background: isLoading || !input.trim() ? 'var(--bg-elevated)' : 'var(--accent)',
+                  color: isLoading || !input.trim() ? 'var(--text-muted)' : '#fff' }}>
+                <SendIcon />
+              </button>
+            </div>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>AI không thay thế bác sĩ · Shift+Enter để xuống dòng</p>
+          </div>
+        </footer>
+      </div>
+
+      {/* Global styles */}
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 4px; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        @keyframes bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        .msg-actions { transition: opacity 0.15s; }
+        .msg-actions:hover { opacity: 1 !important; }
+        @keyframes healthPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(0.85); } }
+        @keyframes healthRing  { 0% { transform:scale(1); opacity:0.4; } 100% { transform:scale(2.5); opacity:0; } }
+        @keyframes dropIn      { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+      `}</style>
+    </div>
+  );
+}
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="lib/auth.ts">
+/**
+ * lib/auth.ts — Session với JWT signed (thay Base64 không có chữ ký)
+ *
+ * Dùng thư viện jose (đã có sẵn trong Next.js ecosystem, không cần cài thêm).
+ * Secret key đọc từ env JWT_SECRET. Nếu chưa có, fallback về dev-only key
+ * và in warning — đủ an toàn cho demo đồ án, không cần config phức tạp.
+ */
+
+import bcrypt from 'bcryptjs';
+import { SignJWT, jwtVerify } from 'jose';
+import { cookies } from 'next/headers';
+import db from './db';
+
+const SESSION_COOKIE = 'med_session';
+const SALT_ROUNDS    = 10;
+const JWT_EXPIRES    = '7d';
+
+// Lấy secret từ env, fallback về dev key nếu chưa set
+function getSecret(): Uint8Array {
+  const raw = process.env.JWT_SECRET;
+  if (!raw) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET phải được set trong production!');
+    }
+    // Dev-only fallback — tự động, không cần config
+    console.warn('[auth] ⚠️  JWT_SECRET chưa set — dùng dev key. Không dùng trong production!');
+    return new TextEncoder().encode('dev-only-secret-change-in-production-32chars!!');
+  }
+  return new TextEncoder().encode(raw);
+}
+
+export type SessionUser = {
+  id       : number;
+  username : string;
+  email    : string;
+  full_name: string | null;
+};
+
+// ── Password ─────────────────────────────────────────────────────────────────
+export async function hashPassword(plain: string) {
+  return bcrypt.hash(plain, SALT_ROUNDS);
+}
+
+export async function verifyPassword(plain: string, hash: string) {
+  return bcrypt.compare(plain, hash);
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
+export async function createSession(userId: number) {
+  const secret = getSecret();
+
+  const token = await new SignJWT({ sub: String(userId) })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(JWT_EXPIRES)
+    .sign(secret);
+
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge  : 60 * 60 * 24 * 7,   // 7 ngày
+    path    : '/',
+  });
+}
+
+export async function getSession(): Promise<SessionUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const cookie      = cookieStore.get(SESSION_COOKIE);
+    if (!cookie?.value) return null;
+
+    const secret  = getSecret();
+    const { payload } = await jwtVerify(cookie.value, secret);
+
+    const userId = parseInt(payload.sub ?? '', 10);
+    if (isNaN(userId)) return null;
+
+    const user = db
+      .prepare('SELECT id, username, email, full_name FROM users WHERE id = ?')
+      .get(userId) as SessionUser | undefined;
+
+    return user ?? null;
+  } catch {
+    // Token expired, tampered, or invalid → treat as logged out
+    return null;
+  }
+}
+
+export async function destroySession() {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+}
+</file>
+
+<file path="lib/db.ts">
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+
+const DB_PATH = path.join(process.cwd(), 'data', 'medical.db');
+
+// Ensure data directory exists
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+
+const db = new Database(DB_PATH);
+
+// Enable WAL mode for better performance
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// Initialize schema
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    username   TEXT    NOT NULL UNIQUE,
+    email      TEXT    NOT NULL UNIQUE,
+    password   TEXT    NOT NULL,
+    full_name  TEXT,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS conversations (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title      TEXT    NOT NULL DEFAULT 'Cuộc trò chuyện mới',
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    role            TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
+    content         TEXT    NOT NULL,
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
+`);
+
+export default db;
+</file>
+
+<file path="lib/ragService.ts">
+/**
+ * lib/ragService.ts — RAG Service v3.1
+ *
+ * Thay đổi so với v3:
+ * - Thêm export formatRAGContext() — dùng bởi chat/route.ts để inject
+ *   tài liệu vào USER MESSAGE thay vì override system prompt
+ * - buildSystemPrompt() giữ lại cho backward compat nhưng không dùng nữa
+ * - Query embedding text vẫn dùng preprocessQuery, KHÔNG nhúng disease prefix
+ *   (prefix chỉ dùng khi ingest để cải thiện vector quality)
+ */
+
+import { ChromaClient } from 'chromadb';
+
+const client          = new ChromaClient({ host: 'localhost', port: 8001 });
+const COLLECTION_NAME = 'medical_ent';
+const EMBEDDING_API   = 'http://localhost:8002/embed';
+
+const THRESHOLD_FILTERED = 0.65; // Ngưỡng khi đã detect bệnh → lọc theo disease_name
+const THRESHOLD_FULL     = 0.45; // Ngưỡng khi không detect bệnh → tìm kiếm semantic toàn bộ (thường lỏng hơn)
+
+// ─── Disease Registry ─────────────────────────────────────────────────────────
+const KNOWN_DISEASES: string[] = [
+  'liệt dây thần kinh vii ngoại biên',
+  'liệt dây thần kinh 7',
+  'liệt mặt',
+  'nghe kém ở trẻ em',
+  'điếc đột ngột',
+  'xốp xơ tai',
+  'bệnh tai ngoài',
+  'viêm tai giữa cấp tính trẻ em',
+  'viêm tai giữa mạn tính',
+  'viêm tai giữa mạn trẻ em',
+  'viêm tai ứ dịch ở trẻ em',
+  'viêm xương chũm cấp tính trẻ em',
+  'bệnh ménière',
+  'mê đay ménière',
+  'vỡ xương đá',
+  'ngạt mũi',
+  'bệnh polyp mũi',
+  'polyp mũi',
+  'viêm mũi dị ứng',
+  'viêm xoang cấp tính',
+  'viêm xoang mạn tính',
+  'papilloma mũi xoang',
+  'papilloma',
+  'ung thư vòm mũi họng',
+  'ung thư thanh quản',
+  'ung thư hạ họng',
+  'viêm amidan cấp',
+  'viêm họng cấp tính',
+  'viêm phù nề thanh thiệt cấp tính',
+  'viêm thanh quản cấp tính',
+  'mềm sụn thanh quản',
+  'lao thanh quản',
+  'trào ngược dạ dày thực quản',
+  'nang và rò túi mang iv',
+  'rò xoang lê',
+];
+
+const DISEASE_ALIAS: Record<string, string> = {
+  'liệt dây thần kinh 7'   : 'Liệt dây thần kinh VII ngoại biên',
+  'liệt mặt'               : 'Liệt dây thần kinh VII ngoại biên',
+  'liệt dây thần kinh vii' : 'Liệt dây thần kinh VII ngoại biên',
+  'xốp xơ tai'             : 'Xốp xơ tai',
+  'xop xo tai'             : 'Xốp xơ tai',
+  'mê đay ménière'         : 'Bệnh ménière',
+  'meniere'                : 'Bệnh ménière',
+  'polyp mũi'              : 'Bệnh polyp mũi',
+  'rò xoang lê'            : 'Nang và rò túi mang IV (rò xoang lê)',
+  'papilloma'              : 'Papilloma (u nhú) mũi xoang',
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+export interface RAGChunk {
+  content     : string;
+  disease_name: string;
+  section     : string;
+  keywords    : string;
+  distance    : number;
+}
+
+export interface RAGDebugInfo {
+  originalQuery   : string;
+  processedQuery  : string;
+  retrievalMode   : 'hybrid_filtered' | 'semantic_full';
+  detectedDisease : string | null;
+  threshold       : number;
+  candidates      : Array<{ disease_name: string; section: string; distance: number; passed: boolean }>;
+  passedCount     : number;
+  elapsedMs       : number;
+}
+
+export interface RAGResult {
+  chunks    : RAGChunk[];
+  hasContext: boolean;
+  debug     : RAGDebugInfo;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function normalize(s: string): string {
+  return s.toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function detectDisease(query: string): { canonical: string; normalized: string } | null {
+  const nq = normalize(query);
+
+  for (const [alias, canonical] of Object.entries(DISEASE_ALIAS)) {
+    if (nq.includes(normalize(alias))) {
+      return { canonical, normalized: normalize(alias) };
+    }
+  }
+
+  const sorted = [...KNOWN_DISEASES].sort((a, b) => b.length - a.length);
+  for (const disease of sorted) {
+    if (nq.includes(normalize(disease))) {
+      const canonical =
+        Object.values(DISEASE_ALIAS).find(v => normalize(v) === normalize(disease)) ??
+        disease.replace(/\b\w/g, c => c.toUpperCase());
+      return { canonical, normalized: normalize(disease) };
+    }
+  }
+  return null;
+}
+
+function preprocessQuery(raw: string): string {
+  let q = raw;
+  [
+    /bác sĩ ơi[,\s]*/gi,
+    /thưa bác sĩ[,\s]*/gi,
+    /cho tôi hỏi[,\s]*/gi,
+    /bạn ơi[,\s]*/gi,
+    /xin hỏi[,\s]*/gi,
+    /bác sĩ hãy tư vấn[^,.?]*/gi,
+    /hãy tư vấn giúp tôi[^,.?]*/gi,
+  ].forEach(f => { q = q.replace(f, ''); });
+
+  [
+    /tôi là (nam|nữ)[^\.,]*/gi,
+    /năm nay \d+ tuổi/gi,
+    /tôi \d+ tuổi/gi,
+    /\d+ tuổi[,\s]*/gi,
+  ].forEach(p => { q = q.replace(p, ''); });
+
+  q = q.replace(/vừa được (chẩn đoán|xác định) là\s*/gi, '');
+  q = q.replace(/^(tôi\s+)?(bị|đang bị|mắc)\s*/i, '');
+  q = q.replace(/\s{2,}/g, ' ').trim().replace(/^[,.\s]+|[,.\s]+$/g, '');
+
+  return q.length < 8 ? raw.trim() : q;
+}
+
+async function getEmbedding(text: string): Promise<number[]> {
+  const res = await fetch(EMBEDDING_API, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ texts: [text] }),
+  });
+  if (!res.ok) throw new Error(`Embedding API ${res.status}`);
+  return (await res.json()).embeddings[0] as number[];
+}
+
+// ─── Main Retrieval ───────────────────────────────────────────────────────────
+export async function retrieveContext(
+  question: string,
+  topK = 5,
+): Promise<RAGResult> {
+  const t0             = Date.now();
+  const processedQuery = preprocessQuery(question);
+  const detectedDisease = detectDisease(question + ' ' + processedQuery);
+
+  const makeEmpty = (): RAGResult => ({
+    chunks    : [],
+    hasContext: false,
+    debug     : {
+      originalQuery  : question,
+      processedQuery,
+      retrievalMode  : 'semantic_full',
+      detectedDisease: detectedDisease?.canonical ?? null,
+      threshold      : THRESHOLD_FULL,
+      candidates     : [],
+      passedCount    : 0,
+      elapsedMs      : Date.now() - t0,
+    },
+  });
+
+  try {
+    const collection     = await client.getCollection({ name: COLLECTION_NAME });
+    const queryEmbedding = await getEmbedding(processedQuery);
+
+    let results   : Awaited<ReturnType<typeof collection.query>>;
+    let mode      : RAGDebugInfo['retrievalMode'];
+    let threshold : number;
+
+    if (detectedDisease) {
+      mode      = 'hybrid_filtered';
+      threshold = THRESHOLD_FILTERED;
+
+      results = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        nResults       : topK,
+        include        : ['documents', 'metadatas', 'distances'] as any,
+        where          : { disease_name: detectedDisease.canonical },
+      });
+
+      if ((results.documents?.[0]?.length ?? 0) === 0) {
+        console.log(`[RAG] Filter "${detectedDisease.canonical}" → 0 hits, fallback`);
+        mode      = 'semantic_full';
+        threshold = THRESHOLD_FULL;
+        results   = await collection.query({
+          queryEmbeddings: [queryEmbedding],
+          nResults       : topK,
+          include        : ['documents', 'metadatas', 'distances'] as any,
+        });
+      }
+    } else {
+      mode      = 'semantic_full';
+      threshold = THRESHOLD_FULL;
+      results   = await collection.query({
+        queryEmbeddings: [queryEmbedding],
+        nResults       : topK,
+        include        : ['documents', 'metadatas', 'distances'] as any,
+      });
+    }
+
+    const docs      = results.documents?.[0] ?? [];
+    const metas     = results.metadatas?.[0]  ?? [];
+    const distances = results.distances?.[0]  ?? [];
+
+    const chunks  : RAGChunk[]                 = [];
+    const dbgList : RAGDebugInfo['candidates'] = [];
+
+    for (let i = 0; i < docs.length; i++) {
+      const distance = distances[i] ?? 999;
+      const meta     = (metas[i] ?? {}) as Record<string, string>;
+      const passed   = distance < threshold;
+
+      dbgList.push({ disease_name: meta.disease_name ?? '', section: meta.section ?? '', distance, passed });
+
+      if (passed) {
+        chunks.push({
+          // ChromaDB document field lưu enriched text (prefix + content)
+          // Lấy phần content thực sự bằng cách bỏ prefix "Bệnh: X - Y.\nNội dung: "
+          content     : extractContent(docs[i] ?? ''),
+          disease_name: meta.disease_name ?? '',
+          section     : meta.section      ?? '',
+          keywords    : meta.keywords     ?? '',
+          distance,
+        });
+      }
+    }
+
+    chunks.sort((a, b) => a.distance - b.distance);
+
+    console.log(
+      `[RAG] mode=${mode} | disease="${detectedDisease?.canonical ?? '-'}" | ${chunks.length}/${docs.length} passed | ${Date.now() - t0}ms`
+    );
+
+    return {
+      chunks,
+      hasContext: chunks.length > 0,
+      debug: {
+        originalQuery  : question,
+        processedQuery,
+        retrievalMode  : mode,
+        detectedDisease: detectedDisease?.canonical ?? null,
+        threshold,
+        candidates     : dbgList,
+        passedCount    : chunks.length,
+        elapsedMs      : Date.now() - t0,
+      },
+    };
+  } catch (err) {
+    console.error('[RAG] retrieveContext error:', err);
+    return makeEmpty();
+  }
+}
+
+/**
+ * Strip enriched prefix từ document text được lưu trong ChromaDB.
+ * Format khi ingest: "Bệnh: X - Y.\nNội dung: <actual content>"
+ * Nếu không có prefix, trả về nguyên text.
+ */
+function extractContent(raw: string): string {
+  const marker = '\nNội dung: ';
+  const idx = raw.indexOf(marker);
+  return idx !== -1 ? raw.slice(idx + marker.length) : raw;
+}
+
+/**
+ * Format RAG chunks thành block text để inject vào user message.
+ * Dùng bởi chat/route.ts — KHÔNG dùng làm system prompt.
+ *
+ * Viết rõ ràng để model hiểu đây là "tài liệu được cung cấp"
+ * nhưng KHÔNG xung đột với system prompt của LM Studio.
+ */
+export function formatRAGContext(ragResult: RAGResult): string {
+  if (!ragResult.hasContext) return '';
+
+  const contextBlock = ragResult.chunks
+    .map((c, i) =>
+      `[Tài liệu ${i + 1}] ${c.disease_name} — ${c.section}\n${c.content}` // Để nguyên content đã được enrich khi ingest, bao gồm cả phần keywords nếu có
+    )
+    .join('\n\n---\n\n');
+
+  return (
+    '【THÔNG TIN TỪ CƠ SỞ DỮ LIỆU Y KHOA NỘI BỘ】\n' +
+    'Dưới đây là các đoạn tài liệu y khoa liên quan được trích từ Hướng dẫn Bộ Y Tế. ' +
+    'Hãy ưu tiên sử dụng thông tin này khi trả lời:\n\n' +
+    contextBlock +
+    '\n\n【HẾT TÀI LIỆU NỘI BỘ】'
+  );
+}
+
+/**
+ * @deprecated Không dùng nữa — system prompt do LM Studio quản lý.
+ * Giữ lại để không break nếu có file import cũ.
+ */
+export function buildSystemPrompt(ragResult: RAGResult): string {
+  return formatRAGContext(ragResult);
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: undefined,
+  serverExternalPackages: ['chromadb', 'better-sqlite3'],
+}
+
+export default nextConfig
+</file>
+
+<file path="package.json">
+{
+  "name": "medical-ai-interface",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.39",
+    "@ai-sdk/react": "^3.0.113",
+    "@chroma-core/default-embed": "^0.1.9",
+    "@xenova/transformers": "^2.17.2",
+    "ai": "^6.0.111",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
+    "chromadb": "^3.4.0",
+    "jose": "^6.2.3",
+    "next": "^16.2.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="postcss.config.mjs">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="rag_backend/build_rag_v2_final.py">
+"""
+build_rag_v2.py — RAG Ingest Script (Version 2.1)
+
+Thay đổi so với v2:
+- texts_to_embed: thêm prefix "Bệnh: X - Section.\nNội dung: Y"
+  → Vector chứa ngữ cảnh bệnh lý, không chỉ content thuần túy
+  → Cải thiện đáng kể chất lượng semantic search
+- documents lưu vào ChromaDB: lưu enriched text (KHÔNG phải chỉ content)
+  → ragService.ts có hàm extractContent() để lấy lại phần content khi retrieve
+  → documents và embeddings nhất quán với nhau (cùng 1 text)
+"""
+
+import json
+import sys
+import requests
+import chromadb
+
+# ─── Config ──────────────────────────────────────────────────────────────────
+CHROMA_HOST     = "localhost"
+CHROMA_PORT     = 8001
+EMBEDDING_API   = "http://localhost:8002/embed"
+COLLECTION_NAME = "medical_ent_final"
+DATA_FILE       = "rag_ent_knowledge.json"
+BATCH_SIZE      = 32
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def get_embeddings(texts: list[str]) -> list[list[float]]:
+    resp = requests.post(EMBEDDING_API, json={"texts": texts}, timeout=60)
+    resp.raise_for_status()
+    return resp.json()["embeddings"]
+
+
+def load_data(path: str) -> list[dict]:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        print("❌ File JSON phải là một array []")
+        sys.exit(1)
+    print(f"📂 Đã đọc {len(data)} records từ {path}")
+    return data
+
+
+def validate_record(rec: dict, idx: int) -> bool:
+    required = {"id", "disease_name", "section", "content", "keywords"}
+    missing = required - rec.keys()
+    if missing:
+        print(f"⚠️  Record #{idx} thiếu field: {missing} — bỏ qua")
+        return False
+    if not rec["content"].strip():
+        print(f"⚠️  Record #{idx} có content rỗng — bỏ qua")
+        return False
+    return True
+
+
+def kw_to_str(kw) -> str:
+    if isinstance(kw, list):
+        return ", ".join(kw)
+    return str(kw)
+
+
+def build_enriched_text(rec: dict) -> str:
+    """
+    Tạo text để embed VÀ lưu vào ChromaDB documents.
+    Prefix disease_name + section giúp embedding model biết ngữ cảnh.
+    ragService.ts dùng hàm extractContent() để parse lại khi retrieve.
+
+    Format: "Bệnh: {disease_name} - {section}.\nNội dung: {content}"
+    """
+    return (
+        f"Bệnh: {rec['disease_name']} - {rec['section']}.\n"
+        f"Nội dung: {rec['content']}"
+    )
+
+
+def main():
+    # 1. Kết nối ChromaDB
+    print(f"🔗 Kết nối ChromaDB tại {CHROMA_HOST}:{CHROMA_PORT}...")
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+
+    # 2. Xóa collection cũ nếu cần re-ingest sạch
+    old_collections = ["medical_ent_v2", "medical_vi_docs", "medical_ent"] # Sửa lại sau mỗi lần test
+    for old_name in old_collections:
+        try:
+            client.delete_collection(old_name)
+            print(f"🗑️  Đã xóa collection cũ: '{old_name}'")
+        except Exception:
+            print(f"ℹ️  Collection '{old_name}' không tồn tại, bỏ qua.")
+
+    # 3. Tạo/lấy collection
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
+    )
+    print(f"✅ Collection '{COLLECTION_NAME}' sẵn sàng.")
+
+    # 4. Load & validate
+    records      = load_data(DATA_FILE)
+    valid_records = [r for i, r in enumerate(records) if validate_record(r, i)]
+    print(f"✅ {len(valid_records)}/{len(records)} records hợp lệ.")
+    if not valid_records:
+        print("❌ Không có record hợp lệ nào. Dừng.")
+        sys.exit(1)
+
+    # 5. Check embedding API
+    print("🔌 Kiểm tra Embedding API...")
+    try:
+        r = requests.get("http://localhost:8002/health", timeout=5)
+        r.raise_for_status()
+        model_name = r.json().get("model", "unknown")
+        print(f"✅ Embedding API OK — model: {model_name}")
+    except Exception as e:
+        print(f"❌ Embedding API chưa chạy: {e}")
+        print("   Hãy chạy: uvicorn embedding_api:app --port 8002")
+        sys.exit(1)
+
+    # 6. Bơm theo batch
+    total = len(valid_records)
+    print(f"\n🚀 Bắt đầu bơm {total} records (batch_size={BATCH_SIZE})...\n")
+    print(f"   📝 Strategy: embed enriched text (disease_name + section + content)")
+    print(f"   💾 Lưu: enriched text vào documents field\n")
+
+    for i in range(0, total, BATCH_SIZE):
+        batch = valid_records[i : i + BATCH_SIZE]
+
+        # Enriched text: prefix bệnh + section + content
+        # Cùng 1 string dùng cho cả embed và lưu vào documents
+        enriched_texts = [build_enriched_text(rec) for rec in batch]
+        embeddings     = get_embeddings(enriched_texts)
+
+        ids = [f"ent_{rec['id']}" for rec in batch]
+
+        metadatas = [
+            {
+                "disease_name": rec["disease_name"],
+                "section"     : rec["section"],
+                "keywords"    : kw_to_str(rec["keywords"]),
+                "record_id"   : str(rec["id"]),
+            }
+            for rec in batch
+        ]
+
+        collection.upsert(
+            ids       = ids,
+            embeddings= embeddings,
+            documents = enriched_texts,   # lưu enriched text (có prefix)
+            metadatas = metadatas,
+        )
+
+        done = min(i + BATCH_SIZE, total)
+        print(f"   ✅ Đã bơm {done}/{total} records")
+
+    # 7. Verify
+    final_count = collection.count()
+    print(f"\n🎉 XONG! Collection '{COLLECTION_NAME}' có {final_count} documents.")
+    print(f"   • Dữ liệu    : ENT (Tai Mũi Họng) — {len(valid_records)} records")
+    print(f"   • Embed text  : enriched (disease + section + content)")
+    print(f"   • Metric      : cosine similarity")
+    print(f"\n   ⚠️  Nhớ re-ingest nếu đổi embedding model hoặc data!")
+
+
+if __name__ == "__main__":
+    main()
+</file>
+
+<file path="rag_backend/build_rag_v2.py">
+"""
+build_rag_v2.py — RAG Ingest Script (Version 2)
+
+Thay đổi so với v1:
+- Gọi embedding_api.py (Python) thay vì dùng trực tiếp SentenceTransformer
+  → Đảm bảo vector space GIỐNG HỆT với ragService.ts
+- Chỉ embed field "content" (không nhét cả Q&A dài vào một vector)
+- Lưu disease_name, section, keywords vào metadata để filter sau này
+- Xóa collection cũ bị bẩn trước khi bơm mới
+- Dùng upsert để có thể chạy lại an toàn
+"""
+
+import json
+import sys
+import requests
+import chromadb
+
+# ─── Config ───────────────────────────────────────────────────────────────────
+CHROMA_HOST = "localhost"
+CHROMA_PORT = 8001
+EMBEDDING_API = "http://localhost:8002/embed"
+COLLECTION_NAME = "medical_ent"          # tên mới, tách biệt với collection cũ bẩn
+DATA_FILE = "rag_ent_knowledge.json"        # file JSON bạn đã chuẩn bị
+BATCH_SIZE = 32
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def get_embeddings(texts: list[str]) -> list[list[float]]:
+    """Gọi embedding_api.py để lấy vector — giống hệt ragService.ts."""
+    resp = requests.post(EMBEDDING_API, json={"texts": texts}, timeout=60)
+    resp.raise_for_status()
+    return resp.json()["embeddings"]
+
+
+def load_data(path: str) -> list[dict]:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        print("❌ File JSON phải là một array []")
+        sys.exit(1)
+    print(f"📂 Đã đọc {len(data)} records từ {path}")
+    return data
+
+
+def validate_record(rec: dict, idx: int) -> bool:
+    required = {"id", "disease_name", "section", "content", "keywords"}
+    missing = required - rec.keys()
+    if missing:
+        print(f"⚠️  Record #{idx} thiếu field: {missing} — bỏ qua")
+        return False
+    if not rec["content"].strip():
+        print(f"⚠️  Record #{idx} có content rỗng — bỏ qua")
+        return False
+    return True
+
+
+def main():
+    # 1. Kết nối ChromaDB
+    print(f"🔗 Kết nối ChromaDB tại {CHROMA_HOST}:{CHROMA_PORT}...")
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+
+    # 2. XÓA collection cũ bẩn (medical_vi_docs / medical_ent_v2)
+    old_collections = ["medical_ent_v2"] # Sửa lại sau mỗi lần test
+    for old_name in old_collections:
+        try:
+            client.delete_collection(old_name)
+            print(f"🗑️  Đã xóa collection cũ: '{old_name}'")
+        except Exception:
+            print(f"ℹ️  Collection '{old_name}' không tồn tại, bỏ qua.")
+
+    # 3. Tạo collection mới (không truyền embedding_function — ta tự handle)
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},   # cosine similarity
+    )
+    print(f"✅ Collection '{COLLECTION_NAME}' sẵn sàng.")
+
+    # 4. Load & validate data
+    records = load_data(DATA_FILE)
+    valid_records = [r for i, r in enumerate(records) if validate_record(r, i)]
+    print(f"✅ {len(valid_records)}/{len(records)} records hợp lệ.")
+
+    if not valid_records:
+        print("❌ Không có record hợp lệ nào. Dừng.")
+        sys.exit(1)
+
+    # 5. Check embedding API
+    print("🔌 Kiểm tra Embedding API...")
+    try:
+        r = requests.get("http://localhost:8002/health", timeout=5)
+        r.raise_for_status()
+        print(f"✅ Embedding API OK — model: {r.json()['model']}")
+    except Exception as e:
+        print(f"❌ Embedding API chưa chạy: {e}")
+        print("   Hãy chạy: uvicorn embedding_api:app --port 8002")
+        sys.exit(1)
+
+    # 6. Bơm theo batch
+    total = len(valid_records)
+    print(f"\n🚀 Bắt đầu bơm {total} records (batch_size={BATCH_SIZE})...\n")
+
+    for i in range(0, total, BATCH_SIZE):
+        batch = valid_records[i : i + BATCH_SIZE]
+
+        # Chỉ embed field "content" — không embed full Q&A
+        texts_to_embed = [rec["content"] for rec in batch]
+        embeddings = get_embeddings(texts_to_embed)
+
+        # Chuẩn bị dữ liệu cho ChromaDB
+        ids = [f"ent_{rec['id']}" for rec in batch]
+
+        # keywords có thể là string hoặc list — chuẩn hóa thành string
+        def kw_to_str(kw):
+            if isinstance(kw, list):
+                return ", ".join(kw)
+            return str(kw)
+
+        metadatas = [
+            {
+                "disease_name": rec["disease_name"],
+                "section": rec["section"],
+                "keywords": kw_to_str(rec["keywords"]),
+                "record_id": str(rec["id"]),
+            }
+            for rec in batch
+        ]
+
+        collection.upsert(
+            ids=ids,
+            embeddings=embeddings,
+            documents=texts_to_embed,   # lưu content text để retrieve sau
+            metadatas=metadatas,
+        )
+
+        done = min(i + BATCH_SIZE, total)
+        print(f"   ✅ Đã bơm {done}/{total} records")
+
+    # 7. Verify
+    final_count = collection.count()
+    print(f"\n🎉 XONG! Collection '{COLLECTION_NAME}' có {final_count} documents.")
+    print(f"   • Dữ liệu: ENT (Tai Mũi Họng)")
+    print(f"   • Embedding: paraphrase-multilingual-MiniLM-L12-v2 (via Python API)")
+    print(f"   • Similarity metric: cosine")
+
+
+if __name__ == "__main__":
+    main()
+</file>
+
+<file path="rag_backend/embedding_api.py">
+"""
+embedding_api.py — Unified Embedding Server
+Chạy: uvicorn embedding_api:app --host 0.0.0.0 --port 8002
+
+Cả build_rag.py (ingest) và Next.js ragService.ts (query) đều gọi vào đây.
+Đảm bảo vector space nhất quán 100%.
+"""
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+from typing import List
+import uvicorn
+
+app = FastAPI(title="Embedding API", version="2.0")
+
+print("🧠 Đang tải model embedding...")
+# model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2") # Hỗ trợ detect tiếng Việt không tốt
+model = SentenceTransformer("bkai-foundation-models/vietnamese-bi-encoder") # Hỗ trợ detect tiếng Việt tốt hơn, nhưng embedding vector có thể khác với model cũ
+print("✅ Model sẵn sàng.")
+
+
+class EmbedRequest(BaseModel):
+    texts: List[str]
+
+
+class EmbedResponse(BaseModel):
+    embeddings: List[List[float]]
+    model: str
+    count: int
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model": "bkai-foundation-models/vietnamese-bi-encoder"}
+
+
+@app.post("/embed", response_model=EmbedResponse)
+def embed(req: EmbedRequest):
+    if not req.texts:
+        raise HTTPException(status_code=400, detail="texts cannot be empty")
+    if len(req.texts) > 512:
+        raise HTTPException(status_code=400, detail="Max 512 texts per request")
+
+    vectors = model.encode(req.texts, normalize_embeddings=True).tolist()
+
+    return EmbedResponse(
+        embeddings=vectors,
+        model="bkai-foundation-models/vietnamese-bi-encoder",
+        count=len(vectors),
+    )
+
+
+if __name__ == "__main__":
+    uvicorn.run("embedding_api:app", host="0.0.0.0", port=8002, reload=False)
+</file>
+
+<file path="rag_backend/peek_db.py">
+import chromadb
+import json
+
+print("🔗 Đang kết nối tới Docker ChromaDB (Port 8001)...")
+try:
+    client = chromadb.HttpClient(host='localhost', port=8001)
+    
+    COLLECTION_NAME = "medical_ent_v2"
+    collection = client.get_collection(name=COLLECTION_NAME)
+
+    # 1. Đếm tổng số tài liệu
+    count = collection.count()
+    print(f"\n📊 TỔNG SỐ TÀI LIỆU TRONG RAG: {count} mẫu")
+
+    if count == 0:
+        print("⚠️ Database đang rỗng!")
+    else:
+        # 2. Lấy thử 3 mẫu đầu tiên để xem nội dung
+        print("\n👀 XEM THỬ 3 TÀI LIỆU BẤT KỲ:")
+        
+        # Hàm peek() giúp lấy ra các mẫu đầu tiên kèm theo vector và metadata
+        results = collection.peek(limit=3) 
+        
+        # Nếu muốn xem các mẫu cụ thể, có thể dùng: 
+        # results = collection.get(limit=3, offset=10) # Bỏ qua 10 mẫu đầu
+        
+        for i in range(len(results['ids'])):
+            print(f"\n🔹 ID Tài liệu: {results['ids'][i]}")
+            print(f"📝 Nội dung Text: \n{results['documents'][i]}")
+            # print(f"🔢 Vector Embedding (5 chiều đầu tiên): {results['embeddings'][i][:5]}...")
+            print("-" * 60)
+
+except Exception as e:
+    print(f"❌ Có lỗi xảy ra: {e}")
+</file>
+
+<file path="rag_backend/requirements_rag.txt">
+# RAG Backend Dependencies
+# pip install -r requirements_rag.txt
+
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sentence-transformers>=3.0.0
+chromadb>=0.5.0
+requests>=2.31.0
+pydantic>=2.0.0
+</file>
+
+<file path="rag_backend/test_rag.py">
+"""
+test_rag_v2.py — Kiểm tra pipeline RAG v2 sau khi ingest
+
+Chạy sau khi:
+  1. embedding_api.py đang chạy (port 8002)
+  2. ChromaDB đang chạy (port 8001)
+  3. build_rag_v2.py đã bơm xong data
+
+Usage:
+  python test_rag_v2.py
+"""
+
+import requests
+import chromadb
+import json
+
+CHROMA_HOST = "localhost"
+CHROMA_PORT = 8001
+EMBEDDING_API = "http://localhost:8002/embed"
+COLLECTION_NAME = "medical_ent_final" # Sửa lại nếu bạn dùng collection name khác
+DISTANCE_THRESHOLD = 0.4
+
+
+def get_embedding(text: str) -> list[float]:
+    resp = requests.post(EMBEDDING_API, json={"texts": [text]}, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["embeddings"][0]
+
+
+def query(question: str, top_k: int = 5):
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+    collection = client.get_collection(COLLECTION_NAME)
+
+    embedding = get_embedding(question)
+    results = collection.query(
+        query_embeddings=[embedding],
+        n_results=top_k,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    docs = results["documents"][0]
+    metas = results["metadatas"][0]
+    distances = results["distances"][0]
+
+    print(f"\n{'─'*60}")
+    print(f"🔍 Query: {question}")
+    print(f"{'─'*60}")
+    print(f"  Candidates: {len(docs)} | Threshold: {DISTANCE_THRESHOLD}")
+
+    passed = 0
+    for i in range(len(docs)):
+        dist = distances[i]
+        meta = metas[i]
+        status = "✅ PASSED" if dist < DISTANCE_THRESHOLD else "❌ FILTERED"
+        if dist < DISTANCE_THRESHOLD:
+            passed += 1
+        print(f"\n  [{i+1}] {status} | Distance: {dist:.4f}")
+        print(f"       Disease: {meta.get('disease_name', '?')}")
+        print(f"       Section: {meta.get('section', '?')}")
+        print(f"       Content preview: {docs[i][:120]}...")
+
+    print(f"\n  → {passed}/{len(docs)} chunks passed threshold\n")
+    return passed
+
+
+# ─── Test Cases ───────────────────────────────────────────────────────────────
+TEST_CASES = [
+    # Relevant queries (nên có context)
+    ("Triệu chứng viêm amidan cấp là gì?", True),
+    ("Phác đồ điều trị viêm tai giữa", True),
+    ("Bị điếc đột ngột một bên tai phải làm gì?", True),
+    ("Dấu hiệu Charles Bell là gì?", True),
+    # Out-of-scope queries (không nên có context, fallback)
+    ("Cách chữa tiểu đường type 2", False),
+    ("Điều trị ung thư phổi giai đoạn 3", False),
+]
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("🧪 RAG v2 — Pipeline Verification")
+    print("=" * 60)
+
+    # Check services
+    try:
+        h = requests.get("http://localhost:8002/health", timeout=3)
+        print(f"✅ Embedding API: {h.json()['model']}")
+    except Exception:
+        print("❌ Embedding API chưa chạy! (port 8002)")
+        exit(1)
+
+    try:
+        client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+        col = client.get_collection(COLLECTION_NAME)
+        print(f"✅ ChromaDB: collection '{COLLECTION_NAME}' có {col.count()} docs")
+    except Exception as e:
+        print(f"❌ ChromaDB error: {e}")
+        exit(1)
+
+    print()
+    results_summary = []
+    for question, should_have_context in TEST_CASES:
+        passed = query(question, top_k=5)
+        got_context = passed > 0
+        ok = got_context == should_have_context
+        results_summary.append((question[:50], should_have_context, got_context, ok))
+
+    print("\n" + "=" * 60)
+    print("📊 SUMMARY")
+    print("=" * 60)
+    for q, expected, got, ok in results_summary:
+        icon = "✅" if ok else "⚠️ "
+        exp_str = "HAS CONTEXT" if expected else "FALLBACK"
+        got_str = "HAS CONTEXT" if got else "FALLBACK"
+        print(f"  {icon} [{exp_str:>12}] → [{got_str:>12}]  {q}...")
+    print()
+</file>
+
+<file path="README.md">
+# 🩺 Medical AI Assistant
+
+> Giao diện web demo cho mô hình LLaMA 3 8B đã fine-tune chuyên biệt lĩnh vực y tế tiếng Việt.  
+> Đồ án tốt nghiệp — Khoa Công Nghệ Thông Tin — 2025
+
+---
+
+## 📸 Demo
+
+![Medical AI Assistant Interface](./public/demo.png)
+
+**Tính năng chính:**
+
+- 💬 Hội thoại đa lượt với nhớ ngữ cảnh đầy đủ
+- ⚡ Streaming real-time từng token như ChatGPT
+- 🗂️ Lịch sử nhiều cuộc hội thoại (sidebar)
+- ✏️ Chỉnh sửa câu hỏi, thử lại câu trả lời, copy nội dung
+- 🌙 Dark theme chuyên nghiệp, font Be Vietnam Pro hỗ trợ tiếng Việt
+- 📱 Responsive trên mọi kích thước màn hình
+
+---
+
+## 🛠️ Tech Stack
+
+| Tầng       | Công nghệ                                      |
+| ---------- | ---------------------------------------------- |
+| Frontend   | Next.js 16 + TypeScript                        |
+| Styling    | Tailwind CSS v3                                |
+| Font       | Be Vietnam Pro (Google Fonts)                  |
+| AI Runtime | LM Studio (OpenAI-compatible API)              |
+| Mô hình    | LLaMA 3 8B — fine-tuned (`medical-chatbot-v4`) |
+| Giao thức  | SSE Streaming (`/v1/chat/completions`)         |
+
+---
+
+## ⚙️ Yêu Cầu Hệ Thống
+
+- **Node.js** >= 18
+- **LM Studio** >= 0.3.x — [Tải tại đây](https://lmstudio.ai)
+- **RAM** >= 12GB (khuyến nghị 16GB)
+- Mô hình GGUF `medical-chatbot-v4` đã được load trong LM Studio
+
+---
+
+## 🚀 Cài Đặt & Chạy
+
+### 1. Clone repository
+
+```bash
+git clone https://github.com/hieule1704/medical_chatbot_interface
+cd medical_chatbot_interface
+```
+
+### 2. Cài đặt dependencies
+
+```bash
+npm install
+```
+
+### 3. Tạo file `.env.local`
+
+```bash
+cp .env.example .env.local
+```
+
+Nội dung `.env.local`:
+
+```env
+OPENAI_API_KEY=lm-studio
+OPENAI_BASE_URL=http://127.0.0.1:1234/v1
+```
+
+### 4. Khởi động LM Studio
+
+1. Mở LM Studio
+2. Load model `medical-chatbot-v4` (GGUF)
+3. Vào tab **Local Server** → bấm **Start Server**
+4. Đảm bảo server chạy tại `http://127.0.0.1:1234`
+
+### 5. Chạy ứng dụng
+
+```bash
+npm run dev -- --turbo=false
+```
+
+Mở trình duyệt tại [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 📁 Cấu Trúc Project
+
+```
+medical-ai-interface/
+├── app/
+│   ├── api/
+│   │   └── chat/
+│   │       └── route.ts      # API endpoint — kết nối LM Studio
+│   ├── globals.css            # Tailwind base styles
+│   ├── layout.tsx             # Root layout + Be Vietnam Pro font
+│   └── page.tsx               # Giao diện chat chính
+├── public/
+│   └── demo.png               # Screenshot demo
+├── .env.local                 # Biến môi trường (không commit)
+├── .env.example               # Template biến môi trường
+├── next.config.ts             # Cấu hình Next.js
+├── tailwind.config.js         # Cấu hình Tailwind CSS
+└── postcss.config.mjs         # PostCSS config
+```
+
+---
+
+## 🔄 Luồng Hoạt Động
+
+```
+Người dùng nhập câu hỏi
+        ↓
+React state (page.tsx) — lưu toàn bộ conversation history
+        ↓
+POST /api/chat — gửi mảng messages {role, content}
+        ↓
+route.ts — forward đến LM Studio kèm system prompt
+        ↓
+LM Studio POST /v1/chat/completions (stream: true)
+        ↓
+medical-chatbot-v4 — generate tokens, trả về SSE stream
+        ↓
+route.ts parser — chuyển đổi sang format 0:"token"
+        ↓
+Browser ReadableStream — cập nhật UI từng token real-time
+```
+
+---
+
+## 🤖 Về Mô Hình Fine-Tuned
+
+| Thông tin          | Chi tiết                                           |
+| ------------------ | -------------------------------------------------- |
+| Base model         | Meta LLaMA 3 8B                                    |
+| Kỹ thuật fine-tune | QLoRA (Quantized Low-Rank Adaptation)              |
+| Domain             | Y tế, sức khỏe tâm thần, tư vấn bệnh lý tiếng Việt |
+| Output artifacts   | LoRA adapter weights + GGUF export                 |
+| Quantization       | Q4_K_M (~5GB RAM)                                  |
+| Inference speed    | ~5.5 tokens/giây (CPU-only)                        |
+
+---
+
+## ⚠️ Lưu Ý Quan Trọng
+
+> **AI không thay thế bác sĩ.** Hệ thống này chỉ mang tính chất demo và hỗ trợ thông tin ban đầu. Người dùng cần tham khảo bác sĩ chuyên khoa cho các vấn đề sức khỏe nghiêm trọng.
+
+---
+
+## 📄 License
+
+MIT License — Sử dụng tự do cho mục đích học thuật và nghiên cứu.
+
+---
+
+<p align="center">
+  Đồ Án Tốt Nghiệp 2026 &nbsp;|&nbsp; Khoa Công Nghệ Thông Tin
+</p>
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+</files>
