@@ -17,7 +17,7 @@ import json
 CHROMA_HOST = "localhost"
 CHROMA_PORT = 8001
 EMBEDDING_API = "http://localhost:8002/embed"
-COLLECTION_NAME = "medical_ent_v2"
+COLLECTION_NAME = "medical_ent_final" # Sửa lại nếu bạn dùng collection name khác
 DISTANCE_THRESHOLD = 0.4
 
 
