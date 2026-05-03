@@ -1,0 +1,21 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 09:30:03 3/5/2026
+══════════════════════════════════════════════════════════════════════
+
+MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
+CHẾ ĐỘ RAG      : TẮT ✗
+SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
+LỊCH SỬ HỘI THOẠI: 1 msgs tổng → gửi 1 msgs
+
+
+
+──────────────────────────────────────────────────────────────────────
+MESSAGES GỬI ĐẾN LM STUDIO (1 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+So sánh tiên lượng ung thư thanh quản giai đoạn T1N0M0 và T3N2M0 — tỷ lệ sống 5 năm?
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

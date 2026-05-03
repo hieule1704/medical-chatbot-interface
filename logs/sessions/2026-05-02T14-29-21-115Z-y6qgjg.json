@@ -1,0 +1,67 @@
+{
+  "id": "2026-05-02T14-29-21-115Z-y6qgjg",
+  "timestamp": "2026-05-02T14:29:21.116Z",
+  "useRag": true,
+  "ragDebug": {
+    "originalQuery": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?",
+    "processedQuery": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?",
+    "retrievalMode": "hybrid_filtered",
+    "detectedDisease": "Xốp xơ tai",
+    "threshold": 0.65,
+    "candidates": [
+      {
+        "disease_name": "Xốp xơ tai",
+        "section": "Nguyên nhân",
+        "distance": 0.19775385,
+        "passed": true
+      },
+      {
+        "disease_name": "Xốp xơ tai",
+        "section": "Triệu chứng",
+        "distance": 0.34768534,
+        "passed": true
+      },
+      {
+        "disease_name": "Xốp xơ tai",
+        "section": "Chẩn đoán",
+        "distance": 0.41735473,
+        "passed": true
+      },
+      {
+        "disease_name": "Xốp xơ tai",
+        "section": "Điều trị",
+        "distance": 0.64005,
+        "passed": true
+      }
+    ],
+    "passedCount": 4,
+    "elapsedMs": 2737
+  },
+  "lmPayload": {
+    "model": "medical-chatbot-v4",
+    "temperature": 0.3,
+    "max_tokens": 768,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?"
+      },
+      {
+        "role": "user",
+        "content": "【THÔNG TIN TỪ CƠ SỞ DỮ LIỆU Y KHOA NỘI BỘ】\nDưới đây là các đoạn tài liệu y khoa liên quan được trích từ Hướng dẫn Bộ Y Tế. Hãy ưu tiên sử dụng thông tin này khi trả lời:\n\n[Tài liệu 1] Xốp xơ tai — Nguyên nhân\nXốp xơ tai là bệnh chuyển hóa xương gây ra cứng khớp xương con (hay gặp nhất là cứng khớp đế xương bàn đạp - cửa sổ tròn). Bệnh thường do di truyền với gen trội. Có hiện tượng rối loạn cấu tạo xương khu trú ở vùng xương thái dương, phá hủy xương kèm tạo lập mô xơ. Mô bào và cốt bào phóng thích enzym thủy phân làm xốp mỏng xương, sau đó thành lập mô xương mới cứng chắc, trắng ngà. Vị trí xốp xơ thường ở cửa sổ bầu dục, đầu trước hoặc dây chằng xương bàn đạp, cửa sổ tròn, tiền đình, cơ quan Corti.\n\n---\n\n[Tài liệu 2] Xốp xơ tai — Triệu chứng\nTriệu chứng cơ năng: Điếc dẫn truyền hoặc điếc hỗn hợp ở một hoặc hai bên tai, điếc tiến triển dần. Có hiện tượng bàng thính (nghe rõ hơn trong môi trường tiếng ồn). Kèm theo ù tai, chóng mặt. Triệu chứng thực thể: Soi tai thấy màng nhĩ trong giới hạn bình thường, dấu hiệu Schwartze (mảng hồng sau màng nhĩ) gặp ở 10% các trường hợp. Soi tai với ống bơm áp lực giúp đánh giá tình trạng cố định của xương búa.\n\n---\n\n[Tài liệu 3] Xốp xơ tai — Chẩn đoán\nXét nghiệm thính học: Âm thoa cho kết quả Rinne (-), Weber lệch tai bệnh, Schwabach kéo dài, Gelle (-). Thính lực đồ đơn âm có Khuyết Carhart ở tần số 2000Hz (giảm đường xương 15dB) là dấu hiệu điển hình. Nhĩ lượng đồ Typ As. Mất phản xạ cơ bàn đạp. Hình ảnh học CT Scan: Đánh giá mức độ lan rộng khối xốp xơ ở cửa sổ bầu dục, phân loại mức độ xốp xơ (Ia, Ib, II, III, IVa, IVb), tiên lượng khả năng rò ngoại dịch. Chẩn đoán phân biệt với gián đoạn chuỗi xương con, cố định xương bàn đạp bẩm sinh, rối loạn sinh xương, cứng khớp đầu xương búa, bệnh Paget.\n\n---\n\n[Tài liệu 4] Xốp xơ tai — Điều trị\nĐiều trị nội khoa: Mang máy trợ thính đối với bệnh nhân không mổ hay có chống chỉ định ngoại khoa. Thuốc giảm hủy xương và tăng tạo xương: Sodium fluoride 50-75 mg/ngày, sau khi giảm triệu chứng dùng liều duy trì 25mg/ngày; kết hợp Vitamin D, Calci carbonate, Bisphosphonate. Điều trị ngoại khoa: Phẫu thuật mở đế đạp (thay gọng xương bàn đạp bằng trụ dẫn nhân tạo Teflon, Titane, Tantalim) hoặc phẫu thuật thay thế toàn bộ xương bàn đạp bằng trụ gốm sinh học hoặc trụ ghép xương đồng chủng. Chống chỉ định phẫu thuật: suy thận mạn, viêm khớp dạng thấp, có thai, sũng nước mê nhĩ, có hội chứng tiền đình, nhiễm trùng.\n\n【HẾT TÀI LIỆU NỘI BỘ】\n\n---\n\nCâu hỏi của tôi: Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?"
+      }
+    ]
+  },
+  "stats": {
+    "totalMessages": 2,
+    "estimatedTokens": 741,
+    "ragChunks": 4,
+    "userMsgLength": 47,
+    "systemMsgLength": 0
+  },
+  "response": {
+    "content": "Chào bạn, Xốp xơ tai (Xốp xương) là một bệnh lý di truyền về cấu trúc xương khớp tai giữa. Nguyên nhân do sự thay đổi trong cấu tạo tế bào xương dẫn đến quá trình hủy xương và tái tạo xương không kiểm soát. Triệu chứng điển hình là điếc giảm dần, ù tai và chóng mặt.\n\nPhác đồ điều trị nội khoa chủ yếu nhằm bảo vệ thính lực:\n- Thuốc trợ thính: Phải sử dụng máy trợ thính (độ tăng 30-40dB) ngay từ giai đoạn sớm để duy trì thính lực.\n- Thuốc điều chỉnh xương: Sodium Fluoride, Vitamin D3, Calci giúp ức chế quá trình hủy xương và kích thích tạo xương. Tuy nhiên, hiệu quả của thuốc này còn hạn chế.\n\nQuan trọng nhất là Phẫu thuật thay gọng xương (mở cửa sổ tròn) khi bệnh đã ổn định để phục hồi dẫn truyền thính giác:\n- Mở cửa sổ bầu dục: Khi xốp xơ vùng cửa sổ bầu dục.\n- Mở cửa sổ tròn: Khi xốp xơ vùng xương bàn đạp.\n\nLời khuyên lối sống: Giữ ấm tai, tránh va chạm mạnh vào đầu. Hạn chế các hoạt động gây áp lực lên hệ thống xương khớp tai giữa (như nhảy cao, bơi lội).\n\nCảnh báo (Red Flags): Nếu bạn thấy ù tai tăng dần kèm chóng mặt nặng, nôn mửa nhiều, cần đi chụp CT Scan để loại trừ Rò ngoại dịch do xốp xơ gây ra.\n\nMiễn trừ trách nhiệm: Thông tin này nhằm mục đích cung cấp kiến thức về bệnh lý Tai giữa. Bạn cần tuân thủ chỉ định của bác sĩ chuyên khoa Thần kinh - Tai mũi họng.",
+    "durationMs": 105933,
+    "estimatedTokens": 368
+  }
+}

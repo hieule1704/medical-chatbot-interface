@@ -1,0 +1,36 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 09:16:27 3/5/2026
+══════════════════════════════════════════════════════════════════════
+
+MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
+CHẾ ĐỘ RAG      : BẬT ✓
+SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
+LỊCH SỬ HỘI THOẠI: 1 msgs tổng → gửi 1 msgs
+
+QUERY GỐC       : Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại 50 tuổi. Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu
+QUERY EMBED     : Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại . Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu
+RETRIEVAL MODE  : semantic_full
+DISEASE DETECT  : (none)
+THRESHOLD       : 0.45
+THỜI GIAN       : 298ms
+
+CHROMADB CANDIDATES (5):
+  [1] ✗ FILTERED | d=0.7150 | Hội chứng đau nhức sọ mặt — Triệu chứng
+  [2] ✗ FILTERED | d=0.7536 | Hội chứng đau nhức sọ mặt — Nguyên nhân
+  [3] ✗ FILTERED | d=0.7796 | Hội chứng đau nhức sọ mặt — Điều trị
+  [4] ✗ FILTERED | d=0.8122 | Viêm mũi xoang cấp tính — Triệu chứng
+  [5] ✗ FILTERED | d=0.8176 | Ù tai — Chẩn đoán
+
+CHUNKS INJECT VÀO LLM: 0 chunks
+
+
+──────────────────────────────────────────────────────────────────────
+MESSAGES GỬI ĐẾN LM STUDIO (1 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại 50 tuổi. Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

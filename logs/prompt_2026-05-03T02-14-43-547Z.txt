@@ -1,0 +1,41 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 09:14:43 3/5/2026
+══════════════════════════════════════════════════════════════════════
+
+MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
+CHẾ ĐỘ RAG      : BẬT ✓
+SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
+LỊCH SỬ HỘI THOẠI: 3 msgs tổng → gửi 3 msgs
+
+QUERY GỐC       : Ngoài ra cho tôi thông tin về bệnh Bệnh ménière ? Bệnh này có liên quan gì với bệnh trầm cảm không?
+QUERY EMBED     : Ngoài ra cho tôi thông tin về bệnh Bệnh ménière ? Bệnh này có liên quan gì với bệnh trầm cảm không?
+RETRIEVAL MODE  : hybrid_filtered
+DISEASE DETECT  : Bệnh ménière
+THRESHOLD       : 0.65
+THỜI GIAN       : 194ms
+
+CHROMADB CANDIDATES (4):
+  [1] ✗ FILTERED | d=0.6572 | Bệnh ménière — Chẩn đoán
+  [2] ✗ FILTERED | d=0.7154 | Bệnh ménière — Nguyên nhân
+  [3] ✗ FILTERED | d=0.7468 | Bệnh ménière — Triệu chứng
+  [4] ✗ FILTERED | d=0.7608 | Bệnh ménière — Điều trị
+
+CHUNKS INJECT VÀO LLM: 0 chunks
+
+
+──────────────────────────────────────────────────────────────────────
+MESSAGES GỬI ĐẾN LM STUDIO (3 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Triệu chứng của bệnh trầm cảm là gì?
+
+[2] ASSISTANT:
+Chào bạn, trầm cảm (hay rối loạn lo âu) thường biểu hiện qua các dấu hiệu tâm lý như: sự buồn bã kéo dài, mất hứng thú với cuộc sống, hay khóc nhiều và dễ bị kích động. Về thể chất, người bệnh có thể thấy mệt mỏi, thay đổi thói quen ăn uống hoặc khó ngủ. Để kiểm soát, bạn nên kết hợp liệu pháp tâm lý (giải tỏa lo âu) và sử dụng các thuốc hỗ trợ như Serotonin Reuptake Inhibitor (SSRI). Bạn cần đi khám ngay nếu có ý định tự gây hại hoặc có dấu hiệu mất kiểm soát hành vi. Những thông tin này giúp bạn nhận diện bệnh, nhưng bạn tuyệt đối KHÔNG được tự điều trị tại nhà mà phải đến chuyên khoa tâm thần để được chẩn đoán và kê đơn thuốc an toàn. Miễn trừ trách nhiệm: Thông tin chỉ mang tính định hướng, không thay thế cho việc thăm khám trực tiếp bởi bác sĩ chuyên khoa.
+
+[3] USER:
+Ngoài ra cho tôi thông tin về bệnh Bệnh ménière ? Bệnh này có liên quan gì với bệnh trầm cảm không?
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

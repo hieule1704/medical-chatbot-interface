@@ -1,0 +1,42 @@
+══════════════════════════════════════════════════════════════════════
+  RAG PROMPT LOG — 09:18:44 3/5/2026
+══════════════════════════════════════════════════════════════════════
+
+MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
+CHẾ ĐỘ RAG      : BẬT ✓
+SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
+LỊCH SỬ HỘI THOẠI: 3 msgs tổng → gửi 3 msgs
+
+QUERY GỐC       : Tôi 50 tuổi là nam với công việc như vừa kể ở trên thì chức năng sinh lý của tôi có bị ảnh hưởng không? Tôi còn khả năng lấy vợ và sinh con ở tuổi này không bác sĩ? Do ngồi nhiều nên tôi thấy khả năng làm chuyện vợ chồng của tôi không khỏe lắm.
+QUERY EMBED     : là nam với công việc như vừa kể ở trên thì chức năng sinh lý của tôi có bị ảnh hưởng không? Tôi còn khả năng lấy vợ và sinh con ở tuổi này không bác sĩ? Do ngồi nhiều nên tôi thấy khả năng làm chuyện vợ chồng của tôi không khỏe lắm
+RETRIEVAL MODE  : semantic_full
+DISEASE DETECT  : (none)
+THRESHOLD       : 0.45
+THỜI GIAN       : 198ms
+
+CHROMADB CANDIDATES (5):
+  [1] ✗ FILTERED | d=0.8187 | U ác tính mũi xoang — Nguyên nhân
+  [2] ✗ FILTERED | d=0.8431 | Nghe kém ở trẻ em — Nguyên nhân
+  [3] ✗ FILTERED | d=0.8513 | Rối loạn giọng — Nguyên nhân
+  [4] ✗ FILTERED | d=0.8546 | Viêm mũi xoang do nấm — Nguyên nhân
+  [5] ✗ FILTERED | d=0.8672 | Nghe kém ở trẻ em — Triệu chứng
+
+CHUNKS INJECT VÀO LLM: 0 chunks
+
+
+──────────────────────────────────────────────────────────────────────
+MESSAGES GỬI ĐẾN LM STUDIO (3 messages):
+──────────────────────────────────────────────────────────────────────
+
+[1] USER:
+Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại 50 tuổi. Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu
+
+[2] ASSISTANT:
+Kính chào bác, tôi rất trân trọng sự cống hiến của bác trong việc đào tạo thế hệ trẻ. Tình trạng nhức đầu do áp lực công việc và stress học tập ở tuổi trung niên thường liên quan đến Hội chứng đau nửa đầu hoặc căng thẳng thần kinh kéo dài. Nguyên nhân là do các cơ vùng cổ bị co thắt, gây ra những cơn đau thỉnh thoảng dữ dội. Để giảm nhẹ tình trạng này, bác có thể sử dụng các biện pháp tự chăm sóc tại nhà: uống nước cam, súc miệng bằng nước muối sinh lý để giải nhiệt, và thực hiện các bài tập thư giãn mắt, cổ hằng ngày. Bác nên sắp xếp thời gian nghỉ ngơi hợp lý giữa các đợt giảng dạy, tránh thức khuya và hạn chế sử dụng thiết bị điện tử trước khi ngủ ít nhất 1 giờ. Nếu cơn đau đầu kèm theo nôn mửa liên tục, nhìn mờ hoặc tăng huyết áp, bác cần đi khám chuyên khoa thần kinh để loại trừ các bệnh lý nền. Những lời khuyên này mang tính chất hỗ trợ sức khỏe tinh thần và thể chất cho người làm việc trí óc, bác nên thực hiện chế độ ăn giàu Omega-3 và bổ sung vitamin nhóm B. Miễn trừ trách nhiệm: Thông tin này chỉ nhằm mục đích định hướng, bác cần thăm khám chuyên sâu để có chẩn đoán chính xác nhất.
+
+[3] USER:
+Tôi 50 tuổi là nam với công việc như vừa kể ở trên thì chức năng sinh lý của tôi có bị ảnh hưởng không? Tôi còn khả năng lấy vợ và sinh con ở tuổi này không bác sĩ? Do ngồi nhiều nên tôi thấy khả năng làm chuyện vợ chồng của tôi không khỏe lắm.
+
+══════════════════════════════════════════════════════════════════════
+END OF LOG
+══════════════════════════════════════════════════════════════════════

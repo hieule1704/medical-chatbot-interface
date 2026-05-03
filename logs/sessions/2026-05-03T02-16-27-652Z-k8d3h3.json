@@ -1,0 +1,71 @@
+{
+  "id": "2026-05-03T02-16-27-652Z-k8d3h3",
+  "timestamp": "2026-05-03T02:16:27.652Z",
+  "useRag": true,
+  "ragDebug": {
+    "originalQuery": "Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại 50 tuổi. Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu",
+    "processedQuery": "Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại . Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu",
+    "retrievalMode": "semantic_full",
+    "detectedDisease": null,
+    "threshold": 0.45,
+    "candidates": [
+      {
+        "disease_name": "Hội chứng đau nhức sọ mặt",
+        "section": "Triệu chứng",
+        "distance": 0.7150072,
+        "passed": false
+      },
+      {
+        "disease_name": "Hội chứng đau nhức sọ mặt",
+        "section": "Nguyên nhân",
+        "distance": 0.7536411,
+        "passed": false
+      },
+      {
+        "disease_name": "Hội chứng đau nhức sọ mặt",
+        "section": "Điều trị",
+        "distance": 0.77963686,
+        "passed": false
+      },
+      {
+        "disease_name": "Viêm mũi xoang cấp tính",
+        "section": "Triệu chứng",
+        "distance": 0.81222904,
+        "passed": false
+      },
+      {
+        "disease_name": "Ù tai",
+        "section": "Chẩn đoán",
+        "distance": 0.81764233,
+        "passed": false
+      }
+    ],
+    "passedCount": 0,
+    "elapsedMs": 298
+  },
+  "modelId": "ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf",
+  "systemPromptNote": "Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)",
+  "lmPayload": {
+    "model": "ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf",
+    "temperature": 0.3,
+    "max_tokens": 768,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Chào bác sĩ tôi là tiến sĩ ngành công nghệ thông tin, hiện tại 50 tuổi. Tôi thường xuyên phải giảng dạy và chấm khóa luận tốt nghiệp cho học sinh khiến tôi bị nhức đầu. Bạn hãy giúp gợi ý tôi cách để giảm nhức đầu"
+      }
+    ]
+  },
+  "stats": {
+    "totalMessages": 1,
+    "estimatedTokens": 65,
+    "ragChunks": 0,
+    "userMsgLength": 213,
+    "systemMsgLength": 0
+  },
+  "response": {
+    "content": "Kính chào bác, tôi rất trân trọng sự cống hiến của bác trong việc đào tạo thế hệ trẻ. Tình trạng nhức đầu do áp lực công việc và stress học tập ở tuổi trung niên thường liên quan đến Hội chứng đau nửa đầu hoặc căng thẳng thần kinh kéo dài. Nguyên nhân là do các cơ vùng cổ bị co thắt, gây ra những cơn đau thỉnh thoảng dữ dội. Để giảm nhẹ tình trạng này, bác có thể sử dụng các biện pháp tự chăm sóc tại nhà: uống nước cam, súc miệng bằng nước muối sinh lý để giải nhiệt, và thực hiện các bài tập thư giãn mắt, cổ hằng ngày. Bác nên sắp xếp thời gian nghỉ ngơi hợp lý giữa các đợt giảng dạy, tránh thức khuya và hạn chế sử dụng thiết bị điện tử trước khi ngủ ít nhất 1 giờ. Nếu cơn đau đầu kèm theo nôn mửa liên tục, nhìn mờ hoặc tăng huyết áp, bác cần đi khám chuyên khoa thần kinh để loại trừ các bệnh lý nền. Những lời khuyên này mang tính chất hỗ trợ sức khỏe tinh thần và thể chất cho người làm việc trí óc, bác nên thực hiện chế độ ăn giàu Omega-3 và bổ sung vitamin nhóm B. Miễn trừ trách nhiệm: Thông tin này chỉ nhằm mục đích định hướng, bác cần thăm khám chuyên sâu để có chẩn đoán chính xác nhất.",
+    "durationMs": 52891,
+    "estimatedTokens": 317
+  }
+}

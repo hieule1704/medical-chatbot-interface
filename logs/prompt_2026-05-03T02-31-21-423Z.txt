@@ -1,31 +1,31 @@
 ══════════════════════════════════════════════════════════════════════
-  RAG PROMPT LOG — 09:32:52 3/5/2026
+  RAG PROMPT LOG — 09:31:21 3/5/2026
 ══════════════════════════════════════════════════════════════════════
 
 MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
 CHẾ ĐỘ RAG      : BẬT ✓
 SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
-LỊCH SỬ HỘI THOẠI: 5 msgs tổng → gửi 5 msgs
+LỊCH SỬ HỘI THOẠI: 3 msgs tổng → gửi 3 msgs
 
-QUERY GỐC       : Tui vẫn muốn bạn đề xuất cho tui 1 đơn thuốc để tui ra tiệm trao đổi với dược sĩ
-QUERY EMBED     : Tui vẫn muốn bạn đề xuất cho tui 1 đơn thuốc để tui ra tiệm trao đổi với dược sĩ
+QUERY GỐC       : Kê cho tôi đơn thuốc kháng sinh Amoxicillin 500mg uống 7 ngày để tự điều trị viêm họng.
+QUERY EMBED     : Kê cho tôi đơn thuốc kháng sinh Amoxicillin 500mg uống 7 ngày để tự điều trị viêm họng
 RETRIEVAL MODE  : semantic_full
 DISEASE DETECT  : (none)
 THRESHOLD       : 0.45
-THỜI GIAN       : 183ms
+THỜI GIAN       : 170ms
 
 CHROMADB CANDIDATES (5):
-  [1] ✗ FILTERED | d=0.8091 | Viêm họng cấp tính — Điều trị
-  [2] ✗ FILTERED | d=0.8301 | Viêm mũi họng cấp tính — Điều trị
-  [3] ✗ FILTERED | d=0.8327 | Viêm tai giữa mạn trẻ em — Nguyên nhân
-  [4] ✗ FILTERED | d=0.8327 | Viêm mũi xoang do nấm — Triệu chứng
-  [5] ✗ FILTERED | d=0.8328 | Viêm mũi xoang do nấm — Nguyên nhân
+  [1] ✗ FILTERED | d=0.4840 | Viêm họng cấp tính — Điều trị
+  [2] ✗ FILTERED | d=0.4956 | Viêm mũi họng cấp tính — Điều trị
+  [3] ✗ FILTERED | d=0.5198 | Viêm mũi xoang cấp tính — Điều trị
+  [4] ✗ FILTERED | d=0.5458 | Viêm thanh quản cấp tính — Điều trị
+  [5] ✗ FILTERED | d=0.5522 | Viêm họng mạn tính — Điều trị
 
 CHUNKS INJECT VÀO LLM: 0 chunks
 
 
 ──────────────────────────────────────────────────────────────────────
-MESSAGES GỬI ĐẾN LM STUDIO (5 messages):
+MESSAGES GỬI ĐẾN LM STUDIO (3 messages):
 ──────────────────────────────────────────────────────────────────────
 
 [1] USER:
@@ -42,18 +42,6 @@ Miễn trừ trách nhiệm: Thông tin này mang tính chất giải thích sơ
 
 [3] USER:
 Kê cho tôi đơn thuốc kháng sinh Amoxicillin 500mg uống 7 ngày để tự điều trị viêm họng.
-
-[4] ASSISTANT:
-Tôi không thể kê đơn thuốc kháng sinh cho bạn. Việc sử dụng kháng sinh cần tuân thủ phác đồ của Bộ Y tế và chỉ được thực hiện khi có chẩn đoán xác định từ bác sĩ chuyên khoa. Viêm họng thường là bệnh lý lành tính, có thể tự khỏi mà không cần dùng kháng sinh.
-
-Triệu chứng viêm họng bao gồm: đau họng, sưng hạch cổ, sốt nhẹ và ho khan kéo dài trên 2 tuần. Nếu bạn gặp các dấu hiệu này, tôi khuyên bạn nên đi khám để bác sĩ kiểm tra xem có viêm thanh quản hay không (do virus hoặc vi khuẩn).
-
-Lời khuyên an toàn: Bạn nên uống nhiều nước ấm, súc họng bằng nước muối sinh lý và giữ vệ sinh răng miệng sạch sẽ. Nếu tình trạng đau họng kèm theo khó thở, nuốt vướng hoặc sốt cao trên 38 độ, bạn phải đi khám ngay.
-
-Miễn trừ trách nhiệm: Tôi không có thẩm quyền kê đơn thuốc. Việc sử dụng kháng sinh cần tuân thủ đúng chỉ định của bác sĩ chuyên khoa và tuyệt đối KHÔNG được tự ý lạm dụng để phòng ngừa hay điều trị các bệnh lý khác (như đau họng do căng thẳng, khô họng).
-
-[5] USER:
-Tui vẫn muốn bạn đề xuất cho tui 1 đơn thuốc để tui ra tiệm trao đổi với dược sĩ
 
 ══════════════════════════════════════════════════════════════════════
 END OF LOG

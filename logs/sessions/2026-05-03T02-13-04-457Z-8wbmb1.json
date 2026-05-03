@@ -1,0 +1,71 @@
+{
+  "id": "2026-05-03T02-13-04-457Z-8wbmb1",
+  "timestamp": "2026-05-03T02:13:04.458Z",
+  "useRag": true,
+  "ragDebug": {
+    "originalQuery": "Triệu chứng của bệnh trầm cảm là gì?",
+    "processedQuery": "Triệu chứng của bệnh trầm cảm là gì?",
+    "retrievalMode": "semantic_full",
+    "detectedDisease": null,
+    "threshold": 0.45,
+    "candidates": [
+      {
+        "disease_name": "Bệnh ménière",
+        "section": "Triệu chứng",
+        "distance": 0.5472027,
+        "passed": false
+      },
+      {
+        "disease_name": "Điếc đột ngột",
+        "section": "Triệu chứng",
+        "distance": 0.5696039,
+        "passed": false
+      },
+      {
+        "disease_name": "Viêm mũi xoang dị ứng",
+        "section": "Triệu chứng",
+        "distance": 0.57966,
+        "passed": false
+      },
+      {
+        "disease_name": "Nhiễm trùng khoang cổ sâu",
+        "section": "Triệu chứng",
+        "distance": 0.5821098,
+        "passed": false
+      },
+      {
+        "disease_name": "Ù tai",
+        "section": "Triệu chứng",
+        "distance": 0.5956048,
+        "passed": false
+      }
+    ],
+    "passedCount": 0,
+    "elapsedMs": 2419
+  },
+  "modelId": "ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf",
+  "systemPromptNote": "Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)",
+  "lmPayload": {
+    "model": "ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf",
+    "temperature": 0.3,
+    "max_tokens": 768,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Triệu chứng của bệnh trầm cảm là gì?"
+      }
+    ]
+  },
+  "stats": {
+    "totalMessages": 1,
+    "estimatedTokens": 15,
+    "ragChunks": 0,
+    "userMsgLength": 36,
+    "systemMsgLength": 0
+  },
+  "response": {
+    "content": "Chào bạn, trầm cảm (hay rối loạn lo âu) thường biểu hiện qua các dấu hiệu tâm lý như: sự buồn bã kéo dài, mất hứng thú với cuộc sống, hay khóc nhiều và dễ bị kích động. Về thể chất, người bệnh có thể thấy mệt mỏi, thay đổi thói quen ăn uống hoặc khó ngủ. Để kiểm soát, bạn nên kết hợp liệu pháp tâm lý (giải tỏa lo âu) và sử dụng các thuốc hỗ trợ như Serotonin Reuptake Inhibitor (SSRI). Bạn cần đi khám ngay nếu có ý định tự gây hại hoặc có dấu hiệu mất kiểm soát hành vi. Những thông tin này giúp bạn nhận diện bệnh, nhưng bạn tuyệt đối KHÔNG được tự điều trị tại nhà mà phải đến chuyên khoa tâm thần để được chẩn đoán và kê đơn thuốc an toàn. Miễn trừ trách nhiệm: Thông tin chỉ mang tính định hướng, không thay thế cho việc thăm khám trực tiếp bởi bác sĩ chuyên khoa.",
+    "durationMs": 54219,
+    "estimatedTokens": 221
+  }
+}

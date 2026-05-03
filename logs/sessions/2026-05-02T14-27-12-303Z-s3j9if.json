@@ -1,0 +1,38 @@
+{
+  "id": "2026-05-02T14-27-12-303Z-s3j9if",
+  "timestamp": "2026-05-02T14:27:12.303Z",
+  "useRag": true,
+  "ragDebug": {
+    "originalQuery": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?",
+    "processedQuery": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?",
+    "retrievalMode": "semantic_full",
+    "detectedDisease": "Xốp xơ tai",
+    "threshold": 0.45,
+    "candidates": [],
+    "passedCount": 0,
+    "elapsedMs": 547
+  },
+  "lmPayload": {
+    "model": "medical-chatbot-v4",
+    "temperature": 0.3,
+    "max_tokens": 768,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Xốp xơ tai là bệnh gì? Nguyên nhân và điều trị?"
+      }
+    ]
+  },
+  "stats": {
+    "totalMessages": 1,
+    "estimatedTokens": 18,
+    "ragChunks": 0,
+    "userMsgLength": 47,
+    "systemMsgLength": 0
+  },
+  "response": {
+    "content": "Chào bạn, Xốp xơ tai (Polypus tai) là một khối mô sùi hình dạng như quả chanh phát triển từ các mạch máu nhỏ ở vách ngăn mũi - họng. Nguyên nhân thường liên quan đến viêm nhiễm kéo dài hoặc dị tật bẩm sinh.\n\nTriệu chứng điển hình của bệnh này là: ù tai, chóng mặt, thính lực giảm dần và có thể gây đau đầu dữ dội.\n\nĐể điều trị hiệu quả, chúng ta cần phối hợp các phương pháp:\n- Điều trị nội khoa: Sử dụng kháng sinh (nếu viêm nhiễm), thuốc giãn mạch (để giảm áp lực trong tai) hoặc thuốc chống đông máu.\n- Điều trị ngoại khoa: Phẫu thuật nội soi mũi họng để cắt bỏ polypus và mở thông dẫn lưu dịch.\n\nLời khuyên lối sống: Bạn nên giữ vệ sinh mũi họng sạch sẽ, tránh các tác nhân gây kích ứng như khói bụi, hóa chất. Hạn chế thay đổi áp lực khi đang đứng thẳng (như bơi lội) để giảm áp lực lên tai.\n\nCảnh báo (Red Flags): Nếu bạn thấy tai sưng to, chảy mủ có mùi hôi thối hoặc chóng mặt dữ dội kèm nôn mửa, cần đi khám chuyên khoa Tai Mũi Họng ngay lập tức.\n\nMiễn trừ trách nhiệm: Thông tin này nhằm mục đích cung cấp kiến thức về bệnh lý Tai Mũi Họng. Bạn nên đến bác sĩ để được chẩn đoán và điều trị chính xác.",
+    "durationMs": 78459,
+    "estimatedTokens": 318
+  }
+}

@@ -1,9 +1,24 @@
 'use client';
 
+// ── DIFF: Chỉ liệt kê những phần thay đổi so với page.tsx hiện tại ──────────
+//
+// VẤN ĐỀ GỐC:
+//   userScrolled là React state → bên trong ReadableStream async callback
+//   nó bị "stale closure": luôn đọc giá trị tại thời điểm tạo closure (false)
+//   dù user đã scroll lên từ lâu → auto-scroll vẫn kéo xuống.
+//
+// FIX:
+//   1. Thêm userScrolledRef = useRef(false) — đọc real-time, không bị stale
+//   2. Mỗi khi setUserScrolled(x) thì đồng thời userScrolledRef.current = x
+//   3. Streaming loop đọc userScrolledRef.current thay vì userScrolled state
+//   4. handleScroll: chỉ set userScrolled=true khi user THỰC SỰ scroll lên
+//      (không phụ thuộc isStreamingRef nữa — ref đó gây race condition)
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Types (giữ nguyên) ────────────────────────────────────────────────────
 type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -21,7 +36,7 @@ interface RAGDebugInfo {
   candidates: RAGCandidate[]; passedCount: number; elapsedMs: number;
 }
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Icons (giữ nguyên — copy từ file gốc) ────────────────────────────────
 const SendIcon = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
 const CopyIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
 const RetryIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>;
@@ -44,7 +59,7 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-// ── Theme CSS Variables ────────────────────────────────────────────────────
+// ── Theme (giữ nguyên) ────────────────────────────────────────────────────
 const DARK_THEME = {
   '--bg-base':       '#030712',
   '--bg-surface':    '#0f172a',
@@ -62,7 +77,6 @@ const DARK_THEME = {
   '--user-bubble':   '#1d4ed8',
   '--shadow':        '0 4px 24px #00000060',
 };
-
 const LIGHT_THEME = {
   '--bg-base':       '#f8fafc',
   '--bg-surface':    '#ffffff',
@@ -81,10 +95,9 @@ const LIGHT_THEME = {
   '--shadow':        '0 4px 24px #0f172a18',
 };
 
-// ── RAG Debug Panel ────────────────────────────────────────────────────────
+// ── RAG Debug Panel (giữ nguyên) ──────────────────────────────────────────
 function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | undefined; ragEnabled: boolean }) {
   const [expanded, setExpanded] = useState(false);
-
   if (!ragEnabled) return (
     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6,
       padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)',
@@ -95,23 +108,18 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
     </div>
   );
   if (!debug) return null;
-
   const hasContext  = debug.passedCount > 0;
   const isHybrid    = debug.retrievalMode === 'hybrid_filtered';
   const queryChanged = debug.originalQuery.trim() !== debug.processedQuery.trim();
-
   return (
     <div style={{ marginTop: 8, borderRadius: 12, border: '1px solid var(--border)',
       background: 'var(--bg-surface)', overflow: 'hidden', maxWidth: 520, fontSize: 12 }}>
-
-      {/* Header */}
       <button onClick={() => setExpanded(v => !v)} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px',
         background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
         color: 'var(--text-secondary)',
       }}>
         <BugIcon />
-
         <span style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '2px 7px',
           borderRadius: 4, fontWeight: 700, fontFamily: 'monospace', fontSize: 10,
@@ -121,12 +129,10 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
         }}>
           {isHybrid ? <><FilterIcon /> HYBRID</> : <><GlobeIcon /> SEMANTIC</>}
         </span>
-
         {debug.detectedDisease
           ? <span style={{ color: '#c4b5fd', fontWeight: 500, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{debug.detectedDisease}</span>
           : <span style={{ color: 'var(--text-muted)', flex: 1, textAlign: 'left', fontFamily: 'monospace' }}>no disease detected</span>
         }
-
         <span style={{
           padding: '2px 8px', borderRadius: 99, fontWeight: 700, flexShrink: 0,
           background: hasContext ? '#10b98115' : '#f59e0b10',
@@ -135,15 +141,11 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
         }}>
           {hasContext ? `✓ ${debug.passedCount} docs` : '⚠ fallback'}
         </span>
-
         <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>{debug.elapsedMs}ms</span>
         <ChevronIcon open={expanded} />
       </button>
-
       {expanded && (
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Query pipeline */}
           <div>
             <p style={{ color: 'var(--text-muted)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: 10, marginBottom: 6 }}>Query pipeline</p>
             <div style={{ background: 'var(--bg-elevated)', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'monospace', fontSize: 11 }}>
@@ -167,8 +169,6 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
               </>}
             </div>
           </div>
-
-          {/* Candidates */}
           <div>
             <p style={{ color: 'var(--text-muted)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', fontSize: 10, marginBottom: 6 }}>
               ChromaDB results (threshold = {debug.threshold})
@@ -201,7 +201,6 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
               ))}
             </div>
           </div>
-
           {!hasContext && (
             <div style={{ borderRadius: 8, padding: '7px 10px', background: '#f59e0b08', border: '1px solid #f59e0b20' }}>
               <p style={{ color: '#f59e0b', fontSize: 11 }}>
@@ -215,9 +214,7 @@ function RAGDebugPanel({ debug, ragEnabled }: { debug: RAGDebugInfo | null | und
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────
-
-// ── Service Health Types & Hook ───────────────────────────────────────────
+// ── Service Health (giữ nguyên) ───────────────────────────────────────────
 interface ServiceStatus { ok: boolean; latencyMs: number; name: string; }
 interface HealthData {
   ok: boolean;
@@ -230,7 +227,6 @@ function useServiceHealth(intervalMs = 15000) {
   const [health, setHealth]     = useState<HealthData | null>(null);
   const [state, setState]       = useState<HealthState>('checking');
   const [expanded, setExpanded] = useState(false);
-
   const check = useCallback(async () => {
     try {
       const res  = await fetch('/api/health', { cache: 'no-store' });
@@ -239,24 +235,18 @@ function useServiceHealth(intervalMs = 15000) {
       if (data.ok) setState('ok');
       else if (data.services.lmStudio.ok || data.services.embeddingApi.ok) setState('degraded');
       else setState('down');
-    } catch {
-      setState('down');
-      setHealth(null);
-    }
+    } catch { setState('down'); setHealth(null); }
   }, []);
-
   useEffect(() => {
     check();
     const id = setInterval(check, intervalMs);
     return () => clearInterval(id);
   }, [check, intervalMs]);
-
   return { health, state, expanded, setExpanded, check };
 }
 
 function StatusIndicator() {
   const { health, state, expanded, setExpanded, check } = useServiceHealth(15000);
-
   const cfg: Record<HealthState, { dot: string; pulse: boolean; label: string; bg: string; border: string }> = {
     checking: { dot: '#94a3b8', pulse: false, label: 'Đang kiểm tra...', bg: 'var(--bg-elevated)', border: 'var(--border)'    },
     ok      : { dot: '#10b981', pulse: true,  label: 'Hệ thống OK',      bg: '#10b98108',         border: '#10b98125'         },
@@ -264,7 +254,6 @@ function StatusIndicator() {
     down    : { dot: '#ef4444', pulse: false, label: 'Mất kết nối',       bg: '#ef444408',         border: '#ef444425'         },
   };
   const c = cfg[state];
-
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <button onClick={() => setExpanded(v => !v)} title="Trạng thái dịch vụ"
@@ -279,7 +268,6 @@ function StatusIndicator() {
         </span>
         <span style={{ fontSize: 12, fontWeight: 500, color: c.dot, whiteSpace: 'nowrap' }}>{c.label}</span>
       </button>
-
       {expanded && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setExpanded(false)} />
@@ -338,6 +326,9 @@ function StatusIndicator() {
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ── Main Component ────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
 export default function Chat() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -356,25 +347,32 @@ export default function Chat() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [exporting, setExporting] = useState(false);
-
-  // ── Smart scroll state ──────────────────────────────────────────────────
-  // userScrolled = true means user manually scrolled up → don't auto-scroll
-  const [userScrolled, setUserScrolled] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const mainRef = useRef<HTMLDivElement>(null);
-  const bottomAnchorRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isStreamingRef = useRef(false);
 
-  // Apply CSS variables whenever darkMode changes
+  // ── SCROLL FIX: dùng ref thay vì state để tránh stale closure ────────────
+  // userScrolledRef.current = true → user đã scroll lên, KHÔNG auto-scroll
+  // userScrolledRef.current = false → user ở cuối, auto-scroll bình thường
+  const userScrolledRef  = useRef(false);
+  // Để sync với React render (cho nút "Về cuối")
+  const [userScrolled, _setUserScrolled] = useState(false);
+
+  // Helper: set cả ref và state cùng lúc
+  const setUserScrolled = useCallback((val: boolean) => {
+    userScrolledRef.current = val;
+    _setUserScrolled(val);
+  }, []);
+
+  const mainRef         = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const textareaRef     = useRef<HTMLTextAreaElement>(null);
+
+  // ── Apply theme ──────────────────────────────────────────────────────────
   useEffect(() => {
     const theme = darkMode ? DARK_THEME : LIGHT_THEME;
     const root = document.documentElement;
     Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
   }, [darkMode]);
 
-  // Persist preference
   useEffect(() => {
     const saved = localStorage.getItem('theme');
     if (saved) setDarkMode(saved === 'dark');
@@ -383,39 +381,43 @@ export default function Chat() {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  // ── Smart scroll logic ───────────────────────────────────────────────────
-  // Track if user scrolled away from bottom
+  // ── SCROLL FIX: detect user scroll ───────────────────────────────────────
+  // Logic đơn giản hơn: đo khoảng cách từ đáy
+  // Nếu > THRESHOLD → user đã scroll lên → lock auto-scroll
+  // Nếu <= THRESHOLD → user đang ở cuối → unlock
+  const SCROLL_THRESHOLD = 80; // px từ đáy
+
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
+
     const handleScroll = () => {
       const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      const scrolledAway = distFromBottom > 80;
-      // Only register as "user scrolled" if not currently streaming
-      if (!isStreamingRef.current) {
-        setUserScrolled(scrolledAway);
-      }
+      const scrolledAway   = distFromBottom > SCROLL_THRESHOLD;
+      // Luôn update ref ngay lập tức (không qua React batching)
+      userScrolledRef.current = scrolledAway;
+      // State chỉ dùng để render nút "Về cuối"
+      _setUserScrolled(scrolledAway);
       setShowScrollBtn(scrolledAway);
     };
+
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, []); // empty deps — chỉ mount 1 lần, đọc ref trực tiếp nên không cần deps
 
-  // Auto-scroll: only when user hasn't scrolled away OR when streaming is starting
+  // Helper scroll xuống
   const scrollToBottom = useCallback((force = false) => {
-    if (!userScrolled || force) {
+    if (force || !userScrolledRef.current) {
       bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [userScrolled]);
+  }, []); // không cần userScrolled trong deps vì đọc ref
 
-  // Scroll when new message added (non-streaming)
+  // Scroll khi thêm message mới (non-streaming, chỉ khi user ở cuối)
   useEffect(() => {
-    if (!isStreamingRef.current) {
-      scrollToBottom();
-    }
+    scrollToBottom();
   }, [messages.length, scrollToBottom]);
 
-  // Auth, conversations, messages loading
+  // ── Auth & data loading ──────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => {
       if (!d.user) { router.replace('/login'); return; }
@@ -445,6 +447,7 @@ export default function Chat() {
     }
   }, [input]);
 
+  // ── Conversations CRUD ───────────────────────────────────────────────────
   const createConversation = useCallback(async (title: string): Promise<number> => {
     const res = await fetch('/api/conversations', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -456,60 +459,82 @@ export default function Chat() {
     return id;
   }, []);
 
+  // ── SCROLL FIX: sendMessages dùng ref, không dùng state ─────────────────
   const sendMessages = useCallback(async (convId: number, msgs: Message[], replaceId?: string) => {
     setIsLoading(true); setError(null);
-    isStreamingRef.current = true;
-    // Reset userScrolled when sending — snap to bottom
+
+    // Reset scroll khi gửi tin mới → snap xuống cuối
     setUserScrolled(false);
-    bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => bottomAnchorRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: msgs.map(({ role, content }) => ({ role, content })), conversationId: convId, useRag }),
+        body: JSON.stringify({
+          messages: msgs.map(({ role, content }) => ({ role, content })),
+          conversationId: convId,
+          useRag,
+        }),
       });
       if (!res.ok) throw new Error();
 
-      const reader = res.body!.getReader();
+      const reader  = res.body!.getReader();
       const decoder = new TextDecoder();
       let content = '';
       let parsedDebug: RAGDebugInfo | null = null;
       let tokenCount = 0;
 
       const assistantMsg: Message = {
-        id: replaceId ?? `ai-${Date.now()}`, role: 'assistant', content: '', timestamp: new Date(), ragDebug: null,
+        id: replaceId ?? `ai-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        ragDebug: null,
       };
-      setMessages(prev => replaceId ? prev.map(m => m.id === replaceId ? assistantMsg : m) : [...prev, assistantMsg]);
+      setMessages(prev =>
+        replaceId
+          ? prev.map(m => m.id === replaceId ? assistantMsg : m)
+          : [...prev, assistantMsg]
+      );
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+
         const chunk = decoder.decode(value, { stream: true });
         for (const line of chunk.split('\n')) {
           if (line.startsWith('d:')) {
-            try { const p = JSON.parse(line.slice(2)); if (p.ragDebug) parsedDebug = p.ragDebug; } catch { /* skip */ }
+            try {
+              const p = JSON.parse(line.slice(2));
+              if (p.ragDebug) parsedDebug = p.ragDebug;
+            } catch { /* skip */ }
             continue;
           }
           if (!line.startsWith('0:')) continue;
           try {
             content += JSON.parse(line.slice(2));
             tokenCount++;
-            const c = content; const d = parsedDebug;
-            setMessages(prev => prev.map(m => m.id === assistantMsg.id ? { ...m, content: c, ragDebug: d } : m));
-            // Auto-scroll every ~10 tokens if user hasn't scrolled away
-            if (tokenCount % 10 === 0 && !userScrolled) {
+            const c = content;
+            const d = parsedDebug;
+            setMessages(prev =>
+              prev.map(m => m.id === assistantMsg.id ? { ...m, content: c, ragDebug: d } : m)
+            );
+
+            // ── SCROLL FIX: đọc REF, không đọc state ─────────────────────
+            // Mỗi 8 token, nếu user chưa scroll lên → auto-scroll xuống cuối
+            if (tokenCount % 8 === 0 && !userScrolledRef.current) {
               bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
             }
           } catch { /* skip */ }
         }
       }
 
-      // Final scroll after streaming ends
-      isStreamingRef.current = false;
-      if (!userScrolled) {
+      // Final scroll khi stream kết thúc
+      if (!userScrolledRef.current) {
         setTimeout(() => bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
       }
 
+      // Auto-rename conversation
       const currentConv = conversations.find(c => c.id === convId);
       const firstUserMsg = msgs.find(m => m.role === 'user');
       if ((!currentConv || currentConv.title === 'Cuộc trò chuyện mới') && firstUserMsg && !replaceId) {
@@ -520,20 +545,27 @@ export default function Chat() {
         });
       }
       fetch('/api/conversations').then(r => r.json()).then(d => setConversations(d.conversations ?? []));
+
     } catch {
       setError('Không thể kết nối đến LM Studio.');
-      isStreamingRef.current = false;
     } finally {
       setIsLoading(false);
     }
-  }, [conversations, useRag, userScrolled]);
+  }, [conversations, useRag, setUserScrolled]); // setUserScrolled stable (useCallback)
 
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
     let convId = activeConvId;
-    if (!convId) { convId = await createConversation('Cuộc trò chuyện mới'); setActiveConvId(convId); }
-    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: input.trim(), timestamp: new Date() };
+    if (!convId) {
+      convId = await createConversation('Cuộc trò chuyện mới');
+      setActiveConvId(convId);
+    }
+    const userMsg: Message = {
+      id: `u-${Date.now()}`, role: 'user',
+      content: input.trim(), timestamp: new Date(),
+    };
     const updated = [...messages, userMsg];
     setMessages(updated); setInput('');
     await sendMessages(convId, updated);
@@ -566,7 +598,8 @@ export default function Chat() {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' }); router.replace('/login');
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/login');
   };
 
   const handleExport = async () => {
@@ -577,7 +610,8 @@ export default function Chat() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `lich-su-${user?.username}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.href = url;
+      a.download = `lich-su-${user?.username}-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click(); URL.revokeObjectURL(url);
     } finally { setExporting(false); }
   };
@@ -585,7 +619,6 @@ export default function Chat() {
   const fmt = (s: string) => new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
   const fmtT = (d: Date) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
-  // Shared style helpers (CSS variable-based, adapts to both themes)
   const s = {
     base:    { background: 'var(--bg-base)',    color: 'var(--text-primary)',    transition: 'background 0.25s, color 0.25s' },
     surface: { background: 'var(--bg-surface)', borderRight: '1px solid var(--border)' },
@@ -609,14 +642,13 @@ export default function Chat() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', ...s.base }}>
 
-      {/* ══ SIDEBAR ═══════════════════════════════════════════════════════ */}
+      {/* ══ SIDEBAR ══════════════════════════════════════════════════════ */}
       <aside style={{
         display: 'flex', flexDirection: 'column', flexShrink: 0,
         width: sidebarOpen ? 256 : 0, overflow: 'hidden',
         transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
         ...s.surface,
       }}>
-        {/* Profile */}
         <div style={{ padding: '16px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
@@ -627,14 +659,14 @@ export default function Chat() {
               <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
             </div>
           </div>
-          <button onClick={async () => { const id = await createConversation('Cuộc trò chuyện mới'); setActiveConvId(id); setMessages([]); }}
+          <button
+            onClick={async () => { const id = await createConversation('Cuộc trò chuyện mới'); setActiveConvId(id); setMessages([]); }}
             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, transition: 'all 0.15s' }}>
             <span style={{ fontSize: 16, fontWeight: 300, lineHeight: 1 }}>+</span>
             <span>Cuộc trò chuyện mới</span>
           </button>
         </div>
 
-        {/* Conversation list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {conversations.length === 0 && (
             <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 40, padding: '0 12px', lineHeight: 1.6 }}>Chưa có cuộc trò chuyện nào</p>
@@ -645,15 +677,16 @@ export default function Chat() {
                 <p style={{ fontSize: 13, color: conv.id === activeConvId ? 'var(--text-primary)' : 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>{conv.title}</p>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{fmt(conv.updated_at)} · {conv.message_count} tin</p>
               </button>
-              <button onClick={() => deleteConversation(conv.id)} style={{ padding: 6, marginRight: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}>
+              <button onClick={() => deleteConversation(conv.id)}
+                style={{ padding: 6, marginRight: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}>
                 <TrashIcon />
               </button>
             </div>
           ))}
         </div>
 
-        {/* Sidebar footer */}
         <div style={{ padding: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <button onClick={handleExport} disabled={exporting} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13, width: '100%', textAlign: 'left', transition: 'color 0.15s' }}>
             <DownloadIcon /><span>{exporting ? 'Đang xuất...' : 'Xuất lịch sử CSV'}</span>
@@ -664,7 +697,7 @@ export default function Chat() {
         </div>
       </aside>
 
-      {/* ══ MAIN ══════════════════════════════════════════════════════════ */}
+      {/* ══ MAIN ════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
 
         {/* Header */}
@@ -674,31 +707,20 @@ export default function Chat() {
           <h1 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
             {conversations.find(c => c.id === activeConvId)?.title ?? 'Medical AI Assistant'}
           </h1>
-
-          {/* Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-
-            {/* Dark/Light toggle */}
             <button onClick={() => setDarkMode(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500, ...s.btn(false, {}) }}>
               {darkMode ? <SunIcon /> : <MoonIcon />}
-              <span style={{ display: window.innerWidth > 640 ? 'inline' : 'none' }}>{darkMode ? 'Light' : 'Dark'}</span>
             </button>
-
-            {/* Debug toggle */}
             <button onClick={() => setShowDebug(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600, ...s.btn(showDebug, { background: '#7c3aed20', color: '#a78bfa', border: '1px solid #7c3aed30' }) }}>
-              <BugIcon /><span style={{ display: window.innerWidth > 640 ? 'inline' : 'none' }}>Debug</span>
+              <BugIcon /><span>Debug</span>
             </button>
-
-            {/* RAG toggle */}
             <button onClick={() => setUseRag(v => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 99, fontSize: 12, fontWeight: 700, ...s.btn(useRag, { background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }) }}>
               {useRag ? '● RAG BẬT' : '○ RAG TẮT'}
             </button>
           </div>
-
-          {/* Service Status Indicator */}
           <StatusIndicator />
         </header>
 
@@ -706,7 +728,6 @@ export default function Chat() {
         <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
           <div style={{ maxWidth: 768, margin: '0 auto', padding: '32px 16px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-            {/* Empty state */}
             {messages.length === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '55vh', textAlign: 'center', gap: 20 }}>
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🩺</div>
@@ -734,10 +755,8 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Message list */}
             {messages.map((m, idx) => (
               <div key={m.id} style={{ display: 'flex', gap: 12, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
-                {/* Avatar */}
                 <div style={{
                   width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginTop: 4,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -750,7 +769,6 @@ export default function Chat() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: '82%', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                  {/* Edit mode */}
                   {editingId === m.id ? (
                     <div style={{ width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--accent-border)', borderRadius: 16, padding: 12 }}>
                       <textarea value={editText} onChange={e => setEditText(e.target.value)}
@@ -774,15 +792,12 @@ export default function Chat() {
                     </div>
                   )}
 
-                  {/* RAG debug */}
                   {m.role === 'assistant' && showDebug && editingId !== m.id && (
                     <RAGDebugPanel debug={m.ragDebug} ragEnabled={useRag} />
                   )}
 
-                  {/* Action bar */}
                   {editingId !== m.id && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, paddingLeft: 4,
-                      flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, paddingLeft: 4, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtT(m.timestamp)}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2, opacity: 0 }}
                         className="msg-actions"
@@ -811,7 +826,6 @@ export default function Chat() {
               </div>
             ))}
 
-            {/* Typing indicator */}
             {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>✚</div>
@@ -829,21 +843,30 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Bottom anchor for scroll */}
             <div ref={bottomAnchorRef} style={{ height: 1 }} />
           </div>
 
-          {/* Scroll-to-bottom button */}
+          {/* Nút "Về cuối" — chỉ hiện khi user đã scroll lên */}
           {showScrollBtn && (
-            <button onClick={() => { setUserScrolled(false); bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' }); }}
+            <button
+              onClick={() => {
+                setUserScrolled(false);
+                bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }}
               style={{
-                position: 'sticky', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-                borderRadius: 99, background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
-                color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-                boxShadow: 'var(--shadow)', zIndex: 10, marginTop: -48,
+                position: 'sticky', bottom: 16, left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 16px', borderRadius: 99,
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-mid)',
+                color: 'var(--text-secondary)', cursor: 'pointer',
+                fontSize: 12, fontWeight: 500,
+                boxShadow: 'var(--shadow)', zIndex: 10,
+                marginTop: -48,
                 animation: 'fadeIn 0.2s ease',
-              }}>
+              }}
+            >
               <ArrowDownIcon /> Về cuối
             </button>
           )}
@@ -860,18 +883,23 @@ export default function Chat() {
                 placeholder="Nhập triệu chứng hoặc câu hỏi... (Enter để gửi)"
                 disabled={isLoading} rows={1} />
               <button onClick={() => handleSubmit()} disabled={isLoading || !input.trim()}
-                style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                style={{
+                  flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
                   background: isLoading || !input.trim() ? 'var(--bg-elevated)' : 'var(--accent)',
-                  color: isLoading || !input.trim() ? 'var(--text-muted)' : '#fff' }}>
+                  color: isLoading || !input.trim() ? 'var(--text-muted)' : '#fff',
+                }}>
                 <SendIcon />
               </button>
             </div>
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>AI không thay thế bác sĩ · Shift+Enter để xuống dòng</p>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+              AI không thay thế bác sĩ · Shift+Enter để xuống dòng
+            </p>
           </div>
         </footer>
       </div>
 
-      {/* Global styles */}
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Be Vietnam Pro', system-ui, sans-serif; }

@@ -12,7 +12,7 @@
 import { ChromaClient } from 'chromadb';
 
 const client          = new ChromaClient({ host: 'localhost', port: 8001 });
-const COLLECTION_NAME = 'medical_ent';
+const COLLECTION_NAME = 'medical_ent_final'; // Sửa lại sau mỗi lần test để không xóa nhầm collection đang dùng
 const EMBEDDING_API   = 'http://localhost:8002/embed';
 
 const THRESHOLD_FILTERED = 0.65; // Ngưỡng khi đã detect bệnh → lọc theo disease_name

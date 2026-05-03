@@ -1,29 +1,35 @@
 ══════════════════════════════════════════════════════════════════════
-  RAG PROMPT LOG — 13:17:40 2/5/2026
+  RAG PROMPT LOG — 09:13:04 3/5/2026
 ══════════════════════════════════════════════════════════════════════
 
+MODEL ID        : ethan2004/llama-3-8b-medical-vi/llama-3-8b-v4-dpo.q4_k_m.gguf
 CHẾ ĐỘ RAG      : BẬT ✓
-SYSTEM PROMPT   : LM Studio built-in (không override từ code)
-LỊCH SỬ HỘI THOẠI: 1 msgs tổng → gửi 1 msgs (truncated)
+SYSTEM PROMPT   : Managed by LM Studio (invisible to client API — set in LM Studio UI → System Prompt tab)
+LỊCH SỬ HỘI THOẠI: 1 msgs tổng → gửi 1 msgs
 
-QUERY GỐC       : Helo
-QUERY EMBED     : Helo
+QUERY GỐC       : Triệu chứng của bệnh trầm cảm là gì?
+QUERY EMBED     : Triệu chứng của bệnh trầm cảm là gì?
 RETRIEVAL MODE  : semantic_full
 DISEASE DETECT  : (none)
 THRESHOLD       : 0.45
-THỜI GIAN       : 452ms
+THỜI GIAN       : 2419ms
 
-CHROMADB CANDIDATES (0):
+CHROMADB CANDIDATES (5):
+  [1] ✗ FILTERED | d=0.5472 | Bệnh ménière — Triệu chứng
+  [2] ✗ FILTERED | d=0.5696 | Điếc đột ngột — Triệu chứng
+  [3] ✗ FILTERED | d=0.5797 | Viêm mũi xoang dị ứng — Triệu chứng
+  [4] ✗ FILTERED | d=0.5821 | Nhiễm trùng khoang cổ sâu — Triệu chứng
+  [5] ✗ FILTERED | d=0.5956 | Ù tai — Triệu chứng
 
 CHUNKS INJECT VÀO LLM: 0 chunks
 
 
 ──────────────────────────────────────────────────────────────────────
-MESSAGES GỬI ĐẾN LM STUDIO (1 messages, NO system override):
+MESSAGES GỬI ĐẾN LM STUDIO (1 messages):
 ──────────────────────────────────────────────────────────────────────
 
 [1] USER:
-Helo
+Triệu chứng của bệnh trầm cảm là gì?
 
 ══════════════════════════════════════════════════════════════════════
 END OF LOG
