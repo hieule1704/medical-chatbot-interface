@@ -15,8 +15,8 @@ const client          = new ChromaClient({ host: 'localhost', port: 8001 });
 const COLLECTION_NAME = 'medical_ent_final'; // Sửa lại sau mỗi lần test để không xóa nhầm collection đang dùng
 const EMBEDDING_API   = 'http://localhost:8002/embed';
 
-const THRESHOLD_FILTERED = 0.65; // Ngưỡng khi đã detect bệnh → lọc theo disease_name
-const THRESHOLD_FULL     = 0.45; // Ngưỡng khi không detect bệnh → tìm kiếm semantic toàn bộ (thường lỏng hơn)
+const THRESHOLD_FILTERED = 0.65; // Khoảng cách tối đa để coi là "liên quan" khi đã detect được bệnh cụ thể → giữ threshold cao để lấy nhiều chunk hơn, bù lại bằng filter disease_name để tránh lạc đề
+const THRESHOLD_FULL     = 0.40; // ← chặt hơn cho semantic: chỉ lấy chunk THỰC SỰ liên quan, tránh lấy nhiều chunk lạc đề khi không detect được bệnh cụ thể nào
 
 // ─── Disease Registry ─────────────────────────────────────────────────────────
 const KNOWN_DISEASES: string[] = [
@@ -167,7 +167,7 @@ async function getEmbedding(text: string): Promise<number[]> {
 // ─── Main Retrieval ───────────────────────────────────────────────────────────
 export async function retrieveContext(
   question: string,
-  topK = 5,
+  topK = 3, // Số lượng chunk tối đa trả về (sau khi lọc theo threshold) ← tối đa 3 chunks — đủ context, không overwhelm model
 ): Promise<RAGResult> {
   const t0             = Date.now();
   const processedQuery = preprocessQuery(question);
@@ -298,22 +298,38 @@ function extractContent(raw: string): string {
  * Viết rõ ràng để model hiểu đây là "tài liệu được cung cấp"
  * nhưng KHÔNG xung đột với system prompt của LM Studio.
  */
+// export function formatRAGContext(ragResult: RAGResult): string { // Cách này có header rõ ràng nhưng LM Studio không hiểu là "tài liệu tham khảo", mà lại nghĩ đây là instruction → model bỏ qua hoặc chỉ dùng 1 đoạn đầu
+//   if (!ragResult.hasContext) return '';
+
+//   const contextBlock = ragResult.chunks
+//     .map((c, i) =>
+//       `[Tài liệu ${i + 1}] ${c.disease_name} — ${c.section}\n${c.content}` // Để nguyên content đã được enrich khi ingest, bao gồm cả phần keywords nếu có
+//     )
+//     .join('\n\n---\n\n');
+
+//   return (
+//     '【THÔNG TIN TỪ CƠ SỞ DỮ LIỆU Y KHOA NỘI BỘ】\n' +
+//     'Dưới đây là các đoạn tài liệu y khoa liên quan được trích từ Hướng dẫn Bộ Y Tế. ' +
+//     'Hãy ưu tiên sử dụng thông tin này khi trả lời:\n\n' +
+//     contextBlock +
+//     '\n\n【HẾT TÀI LIỆU NỘI BỘ】'
+//   );
+// }
+
 export function formatRAGContext(ragResult: RAGResult): string {
-  if (!ragResult.hasContext) return '';
-
-  const contextBlock = ragResult.chunks
-    .map((c, i) =>
-      `[Tài liệu ${i + 1}] ${c.disease_name} — ${c.section}\n${c.content}` // Để nguyên content đã được enrich khi ingest, bao gồm cả phần keywords nếu có
-    )
-    .join('\n\n---\n\n');
-
-  return (
-    '【THÔNG TIN TỪ CƠ SỞ DỮ LIỆU Y KHOA NỘI BỘ】\n' +
-    'Dưới đây là các đoạn tài liệu y khoa liên quan được trích từ Hướng dẫn Bộ Y Tế. ' +
-    'Hãy ưu tiên sử dụng thông tin này khi trả lời:\n\n' +
-    contextBlock +
-    '\n\n【HẾT TÀI LIỆU NỘI BỘ】'
-  );
+  const chunks = ragResult.chunks;
+ 
+  // Format ngắn gọn, không có instruction, không có header đặc biệt
+  const contextLines = chunks.map(c =>
+    `[${c.disease_name} / ${c.section}]\n${c.content}`
+  ).join('\n\n');
+ 
+  // Instruction nhúng trực tiếp vào câu hỏi, không phải header riêng
+  return `Dưới đây là thông tin y khoa tham khảo:
+ 
+${contextLines}
+ 
+Dựa trên thông tin trên, hãy trả lời câu hỏi sau của bệnh nhân (chỉ trả lời một lần, không lặp lại):`;
 }
 
 /**

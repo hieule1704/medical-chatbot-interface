@@ -52,6 +52,7 @@ const GlobeIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="no
 const SunIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
 const MoonIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
 const ArrowDownIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>;
+const StopIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>;
 const ChevronIcon = ({ open }: { open: boolean }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
     style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
@@ -364,6 +365,7 @@ export default function Chat() {
 
   const mainRef         = useRef<HTMLDivElement>(null);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const abortCtrlRef    = useRef<AbortController | null>(null);
   const textareaRef     = useRef<HTMLTextAreaElement>(null);
 
   // ── Apply theme ──────────────────────────────────────────────────────────
@@ -468,6 +470,8 @@ export default function Chat() {
     setTimeout(() => bottomAnchorRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
 
     try {
+      const ctrl = new AbortController();
+      abortCtrlRef.current = ctrl;
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -475,6 +479,7 @@ export default function Chat() {
           conversationId: convId,
           useRag,
         }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error();
 
@@ -546,12 +551,21 @@ export default function Chat() {
       }
       fetch('/api/conversations').then(r => r.json()).then(d => setConversations(d.conversations ?? []));
 
-    } catch {
-      setError('Không thể kết nối đến LM Studio.');
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        // User stopped generation — keep partial content, no error shown.
+      } else {
+        setError('Không thể kết nối đến LM Studio.');
+      }
     } finally {
+      abortCtrlRef.current = null;
       setIsLoading(false);
     }
   }, [conversations, useRag, setUserScrolled]); // setUserScrolled stable (useCallback)
+
+  const handleStop = () => {
+    abortCtrlRef.current?.abort();
+  };
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -882,24 +896,32 @@ export default function Chat() {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
                 placeholder="Nhập triệu chứng hoặc câu hỏi... (Enter để gửi)"
                 disabled={isLoading} rows={1} />
-              <button onClick={() => handleSubmit()} disabled={isLoading || !input.trim()}
-                style={{
-                  flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.15s',
-                  background: isLoading || !input.trim() ? 'var(--bg-elevated)' : 'var(--accent)',
-                  color: isLoading || !input.trim() ? 'var(--text-muted)' : '#fff',
-                }}>
-                <SendIcon />
-              </button>
+              {isLoading ? (
+                <button onClick={handleStop} title="Dừng generate (Stop)"
+                  style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s', background: '#ef444420', color: '#ef4444',
+                    animation: 'stopPulse 1.5s ease-in-out infinite' }}>
+                  <StopIcon />
+                </button>
+              ) : (
+                <button onClick={() => handleSubmit()} disabled={!input.trim()}
+                  style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 10, border: 'none',
+                    cursor: !input.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                    background: !input.trim() ? 'var(--bg-elevated)' : 'var(--accent)',
+                    color: !input.trim() ? 'var(--text-muted)' : '#fff' }}>
+                  <SendIcon />
+                </button>
+              )}
             </div>
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-              AI không thay thế bác sĩ · Shift+Enter để xuống dòng
-            </p>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>AI không thay thế bác sĩ · Shift+Enter để xuống dòng</p>
           </div>
         </footer>
       </div>
 
+      {/* Global styles */}
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Be Vietnam Pro', system-ui, sans-serif; }

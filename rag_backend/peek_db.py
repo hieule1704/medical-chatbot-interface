@@ -5,7 +5,7 @@ print("🔗 Đang kết nối tới Docker ChromaDB (Port 8001)...")
 try:
     client = chromadb.HttpClient(host='localhost', port=8001)
     
-    COLLECTION_NAME = "medical_ent_v2"
+    COLLECTION_NAME = "medical_ent_final" # Đảm bảo trùng với tên collection đã tạo trong lib/ragService.ts
     collection = client.get_collection(name=COLLECTION_NAME)
 
     # 1. Đếm tổng số tài liệu
