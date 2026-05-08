@@ -15,7 +15,7 @@ const client          = new ChromaClient({ host: 'localhost', port: 8001 });
 const COLLECTION_NAME = 'medical_ent_final'; // Sửa lại sau mỗi lần test để không xóa nhầm collection đang dùng
 const EMBEDDING_API   = 'http://localhost:8002/embed';
 
-const THRESHOLD_FILTERED = 0.65; // Khoảng cách tối đa để coi là "liên quan" khi đã detect được bệnh cụ thể → giữ threshold cao để lấy nhiều chunk hơn, bù lại bằng filter disease_name để tránh lạc đề
+const THRESHOLD_FILTERED = 0.75; // Khoảng cách tối đa để coi là "liên quan" khi đã detect được bệnh cụ thể → giữ threshold cao để lấy nhiều chunk hơn, bù lại bằng filter disease_name để tránh lạc đề
 const THRESHOLD_FULL     = 0.40; // ← chặt hơn cho semantic: chỉ lấy chunk THỰC SỰ liên quan, tránh lấy nhiều chunk lạc đề khi không detect được bệnh cụ thể nào
 
 // ─── Disease Registry ─────────────────────────────────────────────────────────
@@ -329,7 +329,7 @@ export function formatRAGContext(ragResult: RAGResult): string {
  
 ${contextLines}
  
-Dựa trên thông tin trên, hãy trả lời câu hỏi sau của bệnh nhân (chỉ trả lời một lần, không lặp lại):`;
+Dựa trên thông tin trên, hãy trả lời câu hỏi sau của bệnh nhân, chỉ trả lời một lần, không lặp lại instruction:`;
 }
 
 /**

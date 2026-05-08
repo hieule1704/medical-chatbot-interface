@@ -795,12 +795,15 @@ export default function Chat() {
                     </div>
                   ) : (
                     <div style={{
-                      padding: '12px 16px', borderRadius: 16, fontSize: 14, lineHeight: 1.65,
+                      padding: '12px 16px',
+                      borderTopLeftRadius: 16,
+                      borderTopRightRadius: 16,
+                      borderBottomRightRadius: m.role === 'user' ? 4 : 16,
+                      borderBottomLeftRadius: m.role === 'assistant' ? 4 : 16,
+                      fontSize: 14, lineHeight: 1.65,
                       background: m.role === 'user' ? 'var(--user-bubble)' : 'var(--bg-elevated)',
                       color: m.role === 'user' ? '#fff' : 'var(--text-primary)',
                       border: m.role === 'assistant' ? '1px solid var(--border)' : 'none',
-                      borderBottomRightRadius: m.role === 'user' ? 4 : 16,
-                      borderBottomLeftRadius: m.role === 'assistant' ? 4 : 16,
                     }}>
                       <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{m.content}</p>
                     </div>
@@ -916,7 +919,7 @@ export default function Chat() {
                 </button>
               )}
             </div>
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>AI không thay thế bác sĩ · Shift+Enter để xuống dòng</p>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>AI không thay thế bác sĩ và có thể đưa ra kết quả không chính xác ☘️</p>
           </div>
         </footer>
       </div>
